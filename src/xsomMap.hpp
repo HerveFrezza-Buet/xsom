@@ -411,8 +411,8 @@ namespace xsom {
 	: min(pos_min), max(pos_max) {}
       virtual ~Mapping() {}
 
-      virtual index_type pos2index(position_type pos) const  = 0;
-      virtual unsigned pos2rank(position_type pos)    const  = 0;
+      virtual index_type    pos2index(position_type pos)     const  = 0;
+      virtual unsigned int  pos2rank(position_type pos)      const  = 0;
       virtual position_type index2pos(const index_type& idx) const  = 0;
     };
 
@@ -434,7 +434,7 @@ namespace xsom {
 	return (unsigned int)((pos-this->min)*coefw+.5);
       }
 
-      virtual unsigned pos2rank(position_type pos) const {
+      virtual unsigned int pos2rank(position_type pos) const {
 	return (unsigned int)((pos-this->min)*coefw+.5);
       }
 
@@ -641,9 +641,9 @@ namespace xsom {
 	: min(pos_min), max(pos_max) {}
       virtual ~Mapping() {}
 
-      virtual index_type pos2index(const position_type& pos) const  = 0;
-      virtual unsigned pos2rank(const position_type& pos)    const  = 0;
-      virtual position_type index2pos(const index_type& idx) const  = 0;
+      virtual index_type    pos2index(const position_type& pos) const  = 0;
+      virtual unsigned int  pos2rank(const position_type& pos)  const  = 0;
+      virtual position_type index2pos(const index_type& idx)    const  = 0;
     };
 
     template<int NB_W, int NB_H>
@@ -670,7 +670,7 @@ namespace xsom {
 	    };
       }
 
-      virtual unsigned pos2rank(const position_type& pos) const {
+      virtual unsigned int pos2rank(const position_type& pos) const {
 	return (unsigned int)((pos.y-this->min.y)*coefh+.5)*NB_W+(unsigned int)((pos.x-this->min.x)*coefw+.5);
       }
 
@@ -826,8 +826,8 @@ namespace xsom {
 		    const Mapping& m,
 		    const fctPOS_IS_VALID& fct_pos_is_valid) 
 	  : xsom::tab::fft::Convolution(m.size.w,m.size.h,sigma,kernel_type),
-	    mapping(m),
-	    pos_is_valid(fct_pos_is_valid) {
+	    pos_is_valid(fct_pos_is_valid),
+	    mapping(m) {
 	}
 
 	virtual ~Convolution() {}     
