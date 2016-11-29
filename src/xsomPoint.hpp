@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include <ccmpl.hpp>
+
 namespace xsom {
   template<typename VALUE>
   struct Point2D {
@@ -10,6 +12,11 @@ namespace xsom {
     Point2D() : x(0), y(0) {}
     Point2D(const Point2D<VALUE>& p) : x(p.x), y(p.y) {}
     Point2D(VALUE xx,VALUE yy) : x(xx), y(yy) {}
+    Point2D(const ccmpl::Point& p) : x(p.x), y(p.y) {}
+    operator ccmpl::Point() const {
+      return ccmpl::Point(x,y);
+    }
+    
     Point2D<VALUE>& operator=(const Point2D<VALUE>& p) {
       if(this != &p) {
 	x = p.x;
@@ -17,6 +24,14 @@ namespace xsom {
       }
       return *this;
     }
+
+    
+    Point2D<VALUE>& operator=(const ccmpl::Point& p) {
+      x = p.x;
+      y = p.y;
+      return *this;
+    }
+    
     Point2D<VALUE> operator+(const Point2D<VALUE>& p) const {
       return Point2D<VALUE>(x+p.x,y+p.y);
     }
@@ -52,6 +67,7 @@ namespace xsom {
     double operator*(const Point2D<VALUE>& p) const {
       return x*p.x+y*p.y;
     }
+    
   };
 
   template<typename VALUE>
