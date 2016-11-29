@@ -71,6 +71,10 @@ namespace xsom {
   };
 
   template<typename VALUE>
+   Point2D<VALUE> operator*(VALUE a, const Point2D<VALUE>& p) {
+    return p*a;
+  }
+  template<typename VALUE>
   std::ostream& operator<<(std::ostream& os,const Point2D<VALUE>& p) {
     os << p.x << ' ' << p.y;
     return os;
