@@ -583,7 +583,26 @@ namespace xsom {
 	    points.push_back({pos,*c});
 	  }
 	}
+	
+	void fill_plot_noconv(std::vector<ccmpl::Point>& points) const {
+	  points.clear();
 
+	  unsigned int idx;
+	  auto c   = this->data.begin();
+	  for(idx = 0; idx < this->width; ++idx, ++c) {
+	    double pos = mapping.index2pos(idx);
+	    points.push_back({pos,*c});
+	  }
+	}
+
+	double operator()(double pos) const {
+	  return this->ws.dst[mapping.pos2rank(pos)];
+	}
+	
+	double get_noconv(double pos) const {
+	  return this->data[mapping.pos2rank(pos)];
+	}
+	
 	double bmu() const {
 	  this->convolve();
 	  unsigned int w;
@@ -857,6 +876,28 @@ namespace xsom {
 	      if(pos_is_valid(pos))
 		points.push_back({pos.x,pos.y,*c});
 	    }
+	}
+      
+      
+	virtual void fill_plot_noconv(std::vector<ccmpl::ValueAt>& points) const {
+	  points.clear();
+
+	  xsom::Index2D idx;
+	  auto c   = this->data.begin();
+	  for(idx.h = 0; idx.h < this->height; ++idx.h)
+	    for(idx.w = 0; idx.w < this->width; ++idx.w, ++c) {
+	      xsom::Point2D<double> pos = mapping.index2pos(idx);
+	      if(pos_is_valid(pos))
+		points.push_back({pos.x,pos.y,*c});
+	    }
+	}
+
+	double operator()(const xsom::Point2D<double>& pos) const {
+	  return this->ws.dst[mapping.pos2rank(pos)];
+	}
+	
+	double get_noconv(const xsom::Point2D<double>& pos) const {
+	  return this->data[mapping.pos2rank(pos)];
 	}
       
 	virtual xsom::Point2D<double> bmu() const {

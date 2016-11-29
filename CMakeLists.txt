@@ -3,7 +3,7 @@ CMAKE_MINIMUM_REQUIRED( VERSION 2.8.4 )
 
 project (xsom) 
 
-SET(PACKAGE_VERSION "1.22")
+SET(PACKAGE_VERSION "1.23")
 SET(PACKAGE_LICENSE "GPL")
 
 SET(CMAKE_BUILD_TYPE Release)
@@ -26,7 +26,7 @@ set(PKG_CONFIG_DEPENDS "fftw3 ccmpl")
 #######################################
 
 # cflags added by the package
-SET(PROJECT_CFLAGS "-Wall -std=c++11")
+SET(PROJECT_CFLAGS "-Wall -std=c++14")
 
 # cflags added by the pkg-config dependencies contains ';' as separator. This is a fix.
 string(REPLACE ";" " " FFTW_CFLAGS "${FFTW_CFLAGS}")

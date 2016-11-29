@@ -106,11 +106,11 @@ void fill_plot(const Acts& l, std::vector<ccmpl::ValueAt>& points) {
 }
 
 
-// The space [-1,1]x[-1,1] is mapped to a [0,501[x[0,501[ grid, where
+// The space [-1,1]x[-1,1] is mapped to a [0,101[x[0,101[ grid, where
 // the convolution is performed. The mapping provides conversion
 // functions.
 
-#define CONVOLUTION_SIDE 501
+#define CONVOLUTION_SIDE 101
 #define GRID_SIGMA       (CONVOLUTION_SIDE/20.0)
 
 #define VIEW_FILE "viewer-000-004.py"
@@ -161,30 +161,33 @@ int main(int argc, char* argv[]) {
   
 
   auto display      = ccmpl::layout(10,10, {"##","##"});
+  std::string flags = "";
+
+  
   display()         = {-1.,1.,-1.,1};
   display()         = ccmpl::show_tics(false,false);
   display().title   = "10x20 Grid";
-  display()        += ccmpl::surface("cmap='gray'", 0, 1, std::bind(&xsom::tab2d::fill_plot_values, std::ref(grid), _1));
-  display()        += ccmpl::dot("c='r',lw=1,s=20,zorder=2", std::bind(fill_dot, std::ref(win1), _1));
+  display()        += ccmpl::surface("cmap='gray'", 0, 1, std::bind(&xsom::tab2d::fill_plot_values, std::ref(grid), _1));           flags += '#';
+  display()        += ccmpl::dot("c='r',lw=1,s=20,zorder=2", std::bind(fill_dot, std::ref(win1), _1));                              flags += '#';
   display++;
   display()         = {-1.,1.,-1.,1};
   display()         = ccmpl::show_tics(false,false);
-  display().title   = "501x501 convolution of the 10x10 grid";
-  display()        += ccmpl::surface("cmap='jet'", 0, 1, std::bind(&xsom::tab2d::fft::Convolution::fill_plot, std::ref(fft1), _1));
+  display().title   = "101x101 convolution of the 10x10 grid";
+  display()        += ccmpl::surface("cmap='jet'", 0, 1, std::bind(&xsom::tab2d::fft::Convolution::fill_plot, std::ref(fft1), _1)); flags += '#';
   display++;
   display()         = {-1.,1.,-1.,1};
   display()         = ccmpl::show_tics(false,false);
   display().title   = "Raw values";
-  display()        += ccmpl::surface("cmap='gray'", 0, 1, fill_activity);
-  display()        += ccmpl::dot("c='r',lw=1,s=20,zorder=2", std::bind(fill_dot, std::ref(win2), _1));
+  display()        += ccmpl::surface("cmap='gray'", 0, 1, fill_activity);                                                           flags += '#';
+  display()        += ccmpl::dot("c='r',lw=1,s=20,zorder=2", std::bind(fill_dot, std::ref(win2), _1));                              flags += '#';
   display++;
   display()         = {-1.,1.,-1.,1};
   display()         = ccmpl::show_tics(false,false);
-  display().title   = "501x501 convolution raw values";
-  display()        += ccmpl::surface("cmap='jet'", 0, 1, std::bind(&xsom::tab2d::fft::Convolution::fill_plot, std::ref(fft2), _1));
+  display().title   = "101x101 convolution raw values";
+  display()        += ccmpl::surface("cmap='jet'", 0, 1, std::bind(&xsom::tab2d::fft::Convolution::fill_plot, std::ref(fft2), _1)); flags += '#';
   
   if(generate_mode) {
-    display.make_python(VIEW_FILE,true);
+    display.make_python(VIEW_FILE,false);
     return 0;
   }
 
@@ -196,12 +199,17 @@ int main(int argc, char* argv[]) {
 
   // Building layers and maps.
 
+  // This layer is useless here... it only shows how to use the
+  // &xsom::tab2d::Table<double>::learn method pointer in the layer
+  // definition.
   auto layer
     = xsom::layer<Weight,
   		  Pos>(0,input,match,h,get_weight,
   		       std::bind(&xsom::tab2d::Table<double>::learn, std::ref(grid), _1),
   		       set_weight);
 
+  // This map has no layers. It computes its outpur from a merge
+  // function... that provides the content of grid.
   auto map 
     = xsom::map(win1,
   		std::bind(&xsom::tab2d::fft::Convolution::learn, std::ref(fft1), _1),
@@ -211,7 +219,6 @@ int main(int argc, char* argv[]) {
 
 
   auto archi = xsom::setup::network();
-  // map   += layer;  I do not add the layer since the dummy match produces a 0 value.
   archi += map;
 				   
   // Run the computation. 
@@ -219,11 +226,17 @@ int main(int argc, char* argv[]) {
   grid.learn(activity); // Let us set explicitly the grid values, since no grid evaluation is performed.
   archi.update();       // updating the maps calls fft1.bmu, which computes the convolution.
 
-  // This is a convolution without any map/layer context.
-  fft2.learn(activity);
-  win2 = fft2.bmu();
+  // This is a convolution without any map/layer context. It show how
+  // convolution can be handled.
+  fft2.learn(activity) ;                    // This set the values into the source internal grid.
+  double val0  = fft2.get_noconv(Pos(0,0)); // Raw values can be retrieved.
+  fft2.convolve();                          // This computes the convolution.
+  double conv0 = fft2(Pos(0,0));            // The values after convolution can be retrieved.
+  win2 = fft2.bmu();                        // This return the position where the convlution is the higest.
+  // Nota : fft2.bmu() performs a convolution.
+  std::cerr << "Values at (0,0) : raw = " << val0 << ", conv = " << conv0 << std::endl;
 	   	     
-  std::cout << display("##""#""##""#","example-000-004.pdf", ccmpl::nofile())
+  std::cout << display(flags,"example-000-004.pdf", ccmpl::nofile())
   	    << ccmpl::stop;
 
   return 0;
