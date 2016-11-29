@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <cmath>
 
 #include <ccmpl.hpp>
 
@@ -24,7 +25,6 @@ namespace xsom {
       }
       return *this;
     }
-
     
     Point2D<VALUE>& operator=(const ccmpl::Point& p) {
       x = p.x;
@@ -51,6 +51,7 @@ namespace xsom {
     Point2D<VALUE> operator*(VALUE alpha) const {
       return Point2D<VALUE>(x*alpha,y*alpha);
     }
+    
     Point2D<VALUE>& operator*=(VALUE alpha) {
       x*=alpha;
       y*=alpha;
@@ -64,8 +65,12 @@ namespace xsom {
       y/=alpha;
       return *this;
     }
-    double operator*(const Point2D<VALUE>& p) const {
+    VALUE operator*(const Point2D<VALUE>& p) const {
       return x*p.x+y*p.y;
+    }
+
+    Point2D<VALUE> operator*() const {
+      return (*this)/std::sqrt((*this)*(*this));
     }
     
   };
