@@ -119,12 +119,41 @@ namespace xsom {
 
 
     template<typename CONTENT>
-    class Table : public xsom::tab::Table<CONTENT,Mapping> {
+    class Table_ : public xsom::tab::Table<CONTENT,Mapping> {
     public:
       const Mapping& mapping;
 
-      Table(const Mapping& mapping) : xsom::tab::Table<CONTENT,Mapping>(mapping) {}
+      Table_(const Mapping& mapping) : xsom::tab::Table<CONTENT,Mapping>(mapping) {}
 
+    };
+
+    template<typename CONTENT>
+    class Table : public Table_<typename CONTENT> {
+    public:
+
+      using Table_<typename CONTENT>::Table_;
+      
+      template<typename ValueOf>
+      void fill_line(const ValueOf& value_of_content,
+		     std::vector<ccmpl::Point>& points) {
+	points.clear();
+
+	unsigned int rank;
+	unsigned int size  = mapping.size;
+	auto c   = l.content.begin();
+	for(idx = 0; idx < size; ++idx, ++c) {
+	  pos = l.mapping.rank2pos(idx);
+	  points.push_back({pos, value_of_content(*c)});
+	}
+      }
+    };
+
+    template<>
+    class Table<double> : public Table_<double> {
+    public:
+
+      using Table_<double>::Table_;
+      
       void fill_line(std::vector<ccmpl::Point>& points) {
 	points.clear();
 
@@ -137,6 +166,7 @@ namespace xsom {
 	}
       }
     };
+    
 
     template<typename CONTENT>
     Table<CONTENT> table(const Mapping& m) {
@@ -184,18 +214,18 @@ namespace xsom {
 
 
     template<typename CONTENT>
-    class Table : public xsom::tab::Table<CONTENT,Mapping> {
+    class Table_ : public xsom::tab::Table<CONTENT,Mapping> {
     public:
       const Mapping& mapping;
       std::function<bool (const xsom::Point2D<double>&)> pos_is_valid;
 
       template<typename fctPOS_IS_VALID>
-      Table(const Mapping& m,
-	    const fctPOS_IS_VALID& fct_pos_is_valid) 
+      Table_(const Mapping& m,
+	     const fctPOS_IS_VALID& fct_pos_is_valid) 
 	: xsom::tab::Table<CONTENT,Mapping>(mapping),
 	pos_is_valid(fct_pos_is_valid) {}
 
-      virtual void learn(std::function<CONTENT (const xsom::Point2D<double>&)> fct_value_at) {
+      void learn(std::function<CONTENT (const xsom::Point2D<double>&)> fct_value_at) {
 	unsigned int rank;
 	unsigned int size  = mapping.size;
 	auto c   = content.begin();
@@ -204,23 +234,6 @@ namespace xsom {
 	  if(pos_is_valid(pos))
 	    *c = fct_value_at(pos);
 	}
-      }
-      
-      template<typename ValueOf>
-      void fill_surface(const ValueOf& value_of_content,
-			std::vector<ccmpl::ValueAt>& points) {
-	points.clear();
-
-	xsom::Index2D idx;
-	unsigned int width  = mapping.size.w;
-	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
-	for(idx.h = 0; idx.h < height; ++idx.h)
-	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	    xsom::Point2D<double> pos = mapping.index2pos(idx);
-	    if(pos_is_valid(pos))
-	      points.push_back({pos.x,pos.y,value_of_content(*c)});
-	  }
       }
 
       
@@ -239,42 +252,6 @@ namespace xsom {
 	    if(pos_is_valid(pos))
 	      points.push_back({pos.x,pos.y,ccmplcolor_of_content(*c)});
 	  }
-      }
-
-      template<typename ValueOf>
-      void fill_image_gray(const ValueOf& value_of_content,
-			   std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
-			   unsigned int& width, unsigned int& depth) {
-	depth = 1;
-	width = mapping.size.w;
-	x.clear();
-	y.clear();
-	z.clear();
-	auto outx = std::back_inserter(x);
-	auto outy = std::back_inserter(y);
-	auto outz = std::back_inserter(z);
-	
-	xsom::Index2D idx;
-	unsigned int width  = mapping.size.w;
-	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
-
-	idx.h = 0;
-	*(outy++) = mapping.index2pos({0,0}).y;
-	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	  auto pos = mapping.index2pos(idx);
-	  *(outx++) = pos.x;
-	  *(outz++) = value_of_content(*c);
-	}
-	
-	for(++idx.h; idx.h < height; ++idx.h) {
-	  idx.w = 0;
-	  auto pos = mapping.index2pos(idx);
-	  *(outy++) = pos.y
-	  *(outz++) = value_of_content(*c);
-	  for(idx.w = 1; idx.w < width; ++idx.w, ++c)
-	    *(outz++) = value_of_content(*c);
-	}
       }
       
       template<typename ColorOf>
@@ -318,6 +295,124 @@ namespace xsom {
 	    *(outz++) = c.g;
 	    *(outz++) = c.b;
 	  }
+	}
+      }
+      
+    };
+
+    template<typename CONTENT>
+    class Table : public Table_<CONTENT> {
+    public:
+
+      using Table_<CONTENT>::Table_;
+      
+      template<typename ValueOf>
+      void fill_surface(const ValueOf& value_of_content,
+			std::vector<ccmpl::ValueAt>& points) {
+	points.clear();
+
+	xsom::Index2D idx;
+	unsigned int width  = mapping.size.w;
+	unsigned int height = mapping.size.h;
+	auto c   = content.begin();
+	for(idx.h = 0; idx.h < height; ++idx.h)
+	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	    xsom::Point2D<double> pos = mapping.index2pos(idx);
+	    if(pos_is_valid(pos))
+	      points.push_back({pos.x,pos.y,value_of_content(*c)});
+	  }
+      }
+
+      template<typename ValueOf>
+      void fill_image_gray(const ValueOf& value_of_content,
+			   std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+			   unsigned int& width, unsigned int& depth) {
+	depth = 1;
+	width = mapping.size.w;
+	x.clear();
+	y.clear();
+	z.clear();
+	auto outx = std::back_inserter(x);
+	auto outy = std::back_inserter(y);
+	auto outz = std::back_inserter(z);
+	
+	xsom::Index2D idx;
+	unsigned int width  = mapping.size.w;
+	unsigned int height = mapping.size.h;
+	auto c   = content.begin();
+
+	idx.h = 0;
+	*(outy++) = mapping.index2pos({0,0}).y;
+	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	  auto pos = mapping.index2pos(idx);
+	  *(outx++) = pos.x;
+	  *(outz++) = value_of_content(*c);
+	}
+	
+	for(++idx.h; idx.h < height; ++idx.h) {
+	  idx.w = 0;
+	  auto pos = mapping.index2pos(idx);
+	  *(outy++) = pos.y
+	  *(outz++) = value_of_content(*c);
+	  for(idx.w = 1; idx.w < width; ++idx.w, ++c)
+	    *(outz++) = value_of_content(*c);
+	}
+      }
+    };
+
+
+    template<>
+    class Table<double> : public Table_<double> {
+    public:
+
+      using Table_<double>::Table_;
+      
+      void fill_surface(std::vector<ccmpl::ValueAt>& points) {
+	points.clear();
+
+	xsom::Index2D idx;
+	unsigned int width  = mapping.size.w;
+	unsigned int height = mapping.size.h;
+	auto c   = content.begin();
+	for(idx.h = 0; idx.h < height; ++idx.h)
+	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	    xsom::Point2D<double> pos = mapping.index2pos(idx);
+	    if(pos_is_valid(pos))
+	      points.push_back({pos.x,pos.y,*c});
+	  }
+      }
+
+      void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+			   unsigned int& width, unsigned int& depth) {
+	depth = 1;
+	width = mapping.size.w;
+	x.clear();
+	y.clear();
+	z.clear();
+	auto outx = std::back_inserter(x);
+	auto outy = std::back_inserter(y);
+	auto outz = std::back_inserter(z);
+	
+	xsom::Index2D idx;
+	unsigned int width  = mapping.size.w;
+	unsigned int height = mapping.size.h;
+	auto c   = content.begin();
+
+	idx.h = 0;
+	*(outy++) = mapping.index2pos({0,0}).y;
+	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	  auto pos = mapping.index2pos(idx);
+	  *(outx++) = pos.x;
+	  *(outz++) = *c;
+	}
+	
+	for(++idx.h; idx.h < height; ++idx.h) {
+	  idx.w = 0;
+	  auto pos = mapping.index2pos(idx);
+	  *(outy++) = pos.y
+	  *(outz++) = *c;
+	  for(idx.w = 1; idx.w < width; ++idx.w, ++c)
+	    *(outz++) = *c;
 	}
       }
     };

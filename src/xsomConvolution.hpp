@@ -422,7 +422,7 @@ namespace xsom {
 	}
 	
 	void fill_surface_noconv(std::vector<ccmpl::ValueAt>& points) {
-	  this->xsom::tab2d::Mapping<double>::fill_surface_noconv([](double x) {return x;}, points);
+	  this->xsom::tab2d::Mapping<double>::fill_surface_noconv(points);
 	}
 
 	void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
@@ -461,7 +461,7 @@ namespace xsom {
 	
 	void fill_image_gray_noconv(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
 				    unsigned int& width, unsigned int& depth) {
-	  return this->xsom::tab2d::Mapping<double>::fill_image_gray([](double x) {return x;},x,y,z,width,depth);
+	  return this->xsom::tab2d::Mapping<double>::fill_image_gray(x,y,z,width,depth);
 	}
       };
 
