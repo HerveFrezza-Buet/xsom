@@ -1,10 +1,12 @@
 #pragma once
 
+#include <xsomConvolution.hpp>
 #include <xsomEntity.hpp>
 #include <xsomLayer.hpp>
 #include <xsomMap.hpp>
 #include <xsomNetwork.hpp>
 #include <xsomPoint.hpp>
+#include <xsomTable.hpp>
 #include <xsomUtility.hpp>
 
 
