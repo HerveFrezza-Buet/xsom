@@ -22,8 +22,7 @@ namespace xsom {
       Mapping(POSITION pos_min, 
 	      POSITION pos_max,
 	      INDEX    size) 
-	: min(pos_min), max(pos_max) {}
-      virtual ~Mapping() {}
+	: min(pos_min), max(pos_max), size(size) {}
 
       INDEX        pos2index(POSITION      pos)  const {}
       POSITION     index2pos(INDEX         idx)  const {}
@@ -46,8 +45,8 @@ namespace xsom {
 	return content[mapping.pos2rank(pos)];
       }
       
-      void clear() {
-	std::fill(content.begin(), content.end(), 0);
+      void clear(const CONTENT& val) {
+	std::fill(content.begin(), content.end(), val);
       }
 
       void learn(std::function<CONTENT (typename MAPPING::position_type)> fct_value_at) {
@@ -123,12 +122,10 @@ namespace xsom {
     class Table : public xsom::tab::Table<CONTENT,Mapping> {
     public:
       const Mapping& mapping;
-      std::vector<CONTENT> content;
 
-      using xsom::tab::Table<CONTENT,Mapping>::Table;
+      Table(const Mapping& mapping) : xsom::tab::Table<CONTENT,Mapping>(mapping) {}
 
       void fill_line(std::vector<ccmpl::Point>& points) {
-	
 	points.clear();
 
 	unsigned int rank;
@@ -149,95 +146,71 @@ namespace xsom {
 
     
   namespace tab2d {
-    class Mapping {
-    public:
-
+    class Mapping : public xsom::tab::Mapping<xsom::Index2D, som::Point2D<double> > {
       typedef xsom::Point2D<double>               position_type;
       typedef xsom::Index2D                       index_type;
-      position_type min,max;
-      index_type size;
-
-      Mapping(const position_type& pos_min, 
-	      const position_type& pos_max) 
-	: min(pos_min), max(pos_max) {}
-      virtual ~Mapping() {}
-
-      virtual index_type    pos2index(const position_type& pos) const  = 0;
-      virtual unsigned int  pos2rank(const position_type& pos)  const  = 0;
-      virtual position_type index2pos(const index_type& idx)    const  = 0;
-    };
-
-    template<int NB_W, int NB_H>
-    class Mapping_ : public Mapping {
-    public:
       double coefx,coefy,coefw,coefh;
       
-      virtual ~Mapping_() {}
-
-      Mapping_(const position_type& pos_min, const position_type& pos_max) 
-	: Mapping(pos_min,pos_max) {
-	this->size.w = NB_W;
-	this->size.h = NB_H;
-	coefw = (NB_W-1.)/(this->max.x-this->min.x);
-	coefh = (NB_H-1.)/(this->max.y-this->min.y);
-	coefx = (this->max.x-this->min.x)/(NB_W-1.);
-	coefy = (this->max.y-this->min.y)/(NB_H-1.);
+      Mapping(position_type pos_min, position_type pos_max, index_type size)
+	: xsom::tab::Mapping<xsom::Index2D, som::Point2D<double> >(pos_min, pos_max, size) {
+	coefw = (size.w-1.)/(max.x-min.x);
+	coefh = (size.h-1.)/(max.y-min.y);
+	coefx = (max.x-min.x)/(size.w-1.);
+	coefy = (max.y-min.y)/(size.h-1.);
       }
-
-      virtual index_type pos2index(const position_type& pos) const {
-	return {
-	  (unsigned int)((pos.x-this->min.x)*coefw+.5),
-	    (unsigned int)((pos.y-this->min.y)*coefh+.5)
-	    };
+      
+      index_type pos2index(double pos)  const override {
+	return { (unsigned int)((pos.x-this->min.x)*coefw+.5), (unsigned int)((pos.y-this->min.y)*coefh+.5)};
       }
-
-      virtual unsigned int pos2rank(const position_type& pos) const {
-	return (unsigned int)((pos.y-this->min.y)*coefh+.5)*NB_W+(unsigned int)((pos.x-this->min.x)*coefw+.5);
+      
+      position_type index2pos(unsigned int idx)  const override {
+	return {idx.w*coefx+this->min.x, idx.h*coefy+this->min.y};
       }
-
-      virtual position_type index2pos(const index_type& idx) const {
-	return {
-	  idx.w*coefx+this->min.x,
-	    idx.h*coefy+this->min.y,
-	    };
+      
+      unsigned int pos2rank (double pos)  const override {
+	return (unsigned int)((pos.y-this->min.y)*coefh+.5)*size.w+(unsigned int)((pos.x-this->min.x)*coefw+.5);
+      }
+      
+      position_type rank2pos (unsigned int rank)  const {
+	return index2pos({rank % size.w, rank / size.w});
       }
     };
-
-    template<int NB_W, int NB_H>
-    Mapping_<NB_W,NB_H> mapping(const xsom::Point2D<double>& pos_min,
-				const xsom::Point2D<double>& pos_max) {
-      return Mapping_<NB_W,NB_H>(pos_min,pos_max);
+    
+    Mapping mapping(const xsom::Point2D<double>& pos_min,
+		    const xsom::Point2D<double>& pos_max,
+		    const xsom::Index2D& size) {
+      return Mapping(pos_min,pos_max,size);
     }
 
 
     template<typename CONTENT>
-    class Table {
+    class Table : public xsom::tab::Table<CONTENT,Mapping> {
     public:
       const Mapping& mapping;
-      std::vector<CONTENT> content;
       std::function<bool (const xsom::Point2D<double>&)> pos_is_valid;
-      xsom::Point2D<double> pos_color_min;
-      xsom::Point2D<double> pos_color_max;
 
       template<typename fctPOS_IS_VALID>
       Table(const Mapping& m,
 	    const fctPOS_IS_VALID& fct_pos_is_valid) 
-	: mapping(m), 
-	  content(m.size.w * m.size.h),
-	  pos_is_valid(fct_pos_is_valid),
-	  pos_color_min(-1,-1),
-	  pos_color_max( 1, 1) {}
-      virtual ~Table() {}
-
-      CONTENT operator()(const xsom::Point2D<double>& pos) const {
-	return content[mapping.pos2rank(pos)];
-      }
-      
-      void clear() {
-	std::fill(content.begin(), content.end(), 0);
-      }
+	: xsom::tab::Table<CONTENT,Mapping>(mapping),
+	pos_is_valid(fct_pos_is_valid) {}
 
       virtual void learn(std::function<CONTENT (const xsom::Point2D<double>&)> fct_value_at) {
+	unsigned int rank;
+	unsigned int size  = mapping.size;
+	auto c   = content.begin();
+	for(rank = 0; rank < size; ++rank, ++c) {
+	  auto pos = mapping.rank2pos(rank);
+	  if(pos_is_valid(pos))
+	    *c = fct_value_at(pos);
+	}
+      }
+      
+      template<typename ValueOf>
+      void fill_surface(const ValueOf& value_of_content,
+			std::vector<ccmpl::ValueAt>& points) {
+	points.clear();
+
 	xsom::Index2D idx;
 	unsigned int width  = mapping.size.w;
 	unsigned int height = mapping.size.h;
@@ -246,42 +219,105 @@ namespace xsom {
 	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
 	    xsom::Point2D<double> pos = mapping.index2pos(idx);
 	    if(pos_is_valid(pos))
-	      *c = fct_value_at(pos);
+	      points.push_back({pos.x,pos.y,value_of_content(*c)});
 	  }
-      }    
-     
-      // bmu is a template in order to avoid its systematic
-      // rewriting. Indeed, is VALUE does not handle operator<, the
-      // bmu code fails.
-      template<typename VALUE=CONTENT>
-      xsom::Point2D<double> bmu() const {
+      }
+
+      
+      template<typename ColorOf>
+      void fill_palette(const ColorOf& ccmplcolor_of_content,
+			std::vector<ccmpl::ColorAt>& points) {
+	points.clear();
+
+	xsom::Index2D idx;
 	unsigned int width  = mapping.size.w;
 	unsigned int height = mapping.size.h;
-	unsigned int w,h;
-	auto it = content.begin();
-	unsigned int wmax = 0;
-	unsigned int hmax = 0;
-	VALUE        max  = *it;
-	VALUE        m;
-	for(h=0;h<height;++h)
-	  for(w=0;w<width;++w,++it) 
-	    if((m = *it) > max) {
-	      wmax = w;
-	      hmax = h;
-	      max = m;
-	    }
-	return mapping.index2pos({wmax,hmax});
+	auto c   = content.begin();
+	for(idx.h = 0; idx.h < height; ++idx.h)
+	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	    xsom::Point2D<double> pos = mapping.index2pos(idx);
+	    if(pos_is_valid(pos))
+	      points.push_back({pos.x,pos.y,ccmplcolor_of_content(*c)});
+	  }
       }
 
-      void write(std::ostream& os) const {
-	for(auto& val : content) os << val << ' ';
-      }
+      template<typename ValueOf>
+      void fill_image_gray(const ValueOf& value_of_content,
+			   std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+			   unsigned int& width, unsigned int& depth) {
+	depth = 1;
+	width = mapping.size.w;
+	x.clear();
+	y.clear();
+	z.clear();
+	auto outx = std::back_inserter(x);
+	auto outy = std::back_inserter(y);
+	auto outz = std::back_inserter(z);
+	
+	xsom::Index2D idx;
+	unsigned int width  = mapping.size.w;
+	unsigned int height = mapping.size.h;
+	auto c   = content.begin();
 
-      void read(std::istream& is) {
-	char sep;
-	for(auto& val : content) {
-	  is >> val;
-	  is.get(sep);
+	idx.h = 0;
+	*(outy++) = mapping.index2pos({0,0}).y;
+	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	  auto pos = mapping.index2pos(idx);
+	  *(outx++) = pos.x;
+	  *(outz++) = value_of_content(*c);
+	}
+	
+	for(++idx.h; idx.h < height; ++idx.h) {
+	  idx.w = 0;
+	  auto pos = mapping.index2pos(idx);
+	  *(outy++) = pos.y
+	  *(outz++) = value_of_content(*c);
+	  for(idx.w = 1; idx.w < width; ++idx.w, ++c)
+	    *(outz++) = value_of_content(*c);
+	}
+      }
+      
+      template<typename ColorOf>
+      void fill_image_rgb(const ColorOf& ccmplcolor_of_content,
+			   std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+			  unsigned int& width, unsigned int& depth) {
+	depth = 3;
+	width = mapping.size.w;
+	width = mapping.size.w;
+	x.clear();
+	y.clear();
+	z.clear();
+	auto outx = std::back_inserter(x);
+	auto outy = std::back_inserter(y);
+	auto outz = std::back_inserter(z);
+	
+	xsom::Index2D idx;
+	unsigned int width  = mapping.size.w;
+	unsigned int height = mapping.size.h;
+	auto c   = content.begin();
+
+	idx.h = 0;
+	*(outy++) = mapping.index2pos({0,0}).y;
+	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	  auto pos = mapping.index2pos(idx);
+	  *(outx++) = pos.x;
+	  auto color = ccmplcolor_of_content(*c);
+	  *(outz++) = c.r;
+	  *(outz++) = c.g;
+	  *(outz++) = c.b;
+	}
+	
+	for(++idx.h; idx.h < height; ++idx.h) {
+	  idx.w = 0;
+	  auto pos = mapping.index2pos(idx);
+	  *(outy++) = pos.y
+	  *(outz++) = value_of_content(*c);
+	  for(idx.w = 1; idx.w < width; ++idx.w, ++c) {
+	    auto color = ccmplcolor_of_content(*c);
+	    *(outz++) = c.r;
+	    *(outz++) = c.g;
+	    *(outz++) = c.b;
+	  }
 	}
       }
     };
@@ -293,44 +329,6 @@ namespace xsom {
       return Table<CONTENT>(m,fct_pos_is_valid);
     }
 
-    void fill_plot_values(const Table<double>& l, std::vector<ccmpl::ValueAt>& points) {
-	
-      points.clear();
-
-      xsom::Index2D idx;
-      unsigned int width  = l.mapping.size.w;
-      unsigned int height = l.mapping.size.h;
-      auto c   = l.content.begin();
-      for(idx.h = 0; idx.h < height; ++idx.h)
-	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	  xsom::Point2D<double> pos = l.mapping.index2pos(idx);
-	  if(l.pos_is_valid(pos))
-	    points.push_back({pos.x,pos.y,*c});
-	}
-    }
-
-
-    template<typename CONTENT,typename PointOf>
-    void fill_plot_color(const Table<CONTENT>& l, 
-			 const PointOf& point_of,
-			 std::vector<ccmpl::ColorAt>& points) {
-      points.clear();
-
-      xsom::Index2D idx;
-      unsigned int width  = l.mapping.size.w;
-      unsigned int height = l.mapping.size.h;
-      auto c   = l.content.begin();
-      for(idx.h = 0; idx.h < height; ++idx.h)
-	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	  xsom::Point2D<double> pos = l.mapping.index2pos(idx);
-	  if(l.pos_is_valid(pos))
-	    points.push_back({pos.x,pos.y,ccmpl::color::from_point<double>(point_of(*c),
-									   l.pos_color_min.x, 
-									   l.pos_color_max.x, 
-									   l.pos_color_min.y, 
-									   l.pos_color_max.y)});
-	}
-    }
   }
     
     

@@ -23,7 +23,8 @@ namespace xsom {
 
 	unsigned int width,height;
 	unsigned int size;
-	std::vector<double> data;
+	std::vector<double>& data;
+	
       public:
 	mutable Workspace ws;
       protected:
@@ -235,8 +236,11 @@ namespace xsom {
 	    };
 
    
-	Convolution(unsigned int w, unsigned int h, double sigma, KernelType kernel_type) 
-	  : width(w), height(h), size(w*h), data(w*h),
+	Convolution(unsigned int w, unsigned int h, double sigma,
+		    std::vector<double>& data,
+		    KernelType kernel_type) 
+	  : width(w), height(h), size(w*h),
+	    data(data),
 	    kernel_width(2*width -1), kernel_height(2*height -1),
 	    kernel(new double[kernel_width*kernel_height]),
 	    FFTW_FACTORS({{13,11,7,5,3,2,0}}) {
@@ -304,97 +308,56 @@ namespace xsom {
 
   namespace tab1d {
     namespace fft {
-      class Convolution : public xsom::tab::fft::Convolution {
+      class Convolution : public xsom::tab1d::Mapping<double> {
+      private :
+
+	xsom::tab::fft::Convolution convolution;
+
       public:
 
-	const Mapping& mapping;
+	Convolution(const Mapping& m, double sigma, KernelType kernel_type)
+	  : xsom::tab1d::Mapping(m),
+	    convolution(m.size, 1, sigma, this->content, kernel_type) {}
 
-      public:
 
-	Convolution(double sigma, KernelType kernel_type, const Mapping& m) :
-	  xsom::tab::fft::Convolution(m.size, 1, sigma, kernel_type),
-	  mapping(m) {}
-
-	virtual ~Convolution() {}
-
-	void learn(std::function<double (double)> fct_value_at) {
-
-	  unsigned int idx;
-	  auto c   = this->data.begin();
-	  for(idx = 0; idx < this->width; ++idx, ++c) {
-	    double pos = mapping.index2pos(idx);
-	    *c = fct_value_at(pos);
-	  }
-	}
-
-	void fill_plot(std::vector<ccmpl::Point>& points) const {
+	void fill_line(std::vector<ccmpl::Point>& points) const {
 	  points.clear();
 
-	  unsigned int idx;
-	  double* c = this->ws.dst;
-	  for(idx = 0; idx < this->width; ++idx, ++c) {
-	    double pos = mapping.index2pos(idx);
-	    points.push_back({pos,*c});
+	  unsigned int rank;
+	  unsigned int size  = mapping.size;
+	  auto c   = convolution.ws.dst;
+	  for(idx = 0; idx < size; ++idx, ++c) {
+	    pos = l.mapping.rank2pos(idx);
+	    points.push_back({pos, *c});
 	  }
 	}
 	
-	void fill_plot_noconv(std::vector<ccmpl::Point>& points) const {
-	  points.clear();
-
-	  unsigned int idx;
-	  auto c   = this->data.begin();
-	  for(idx = 0; idx < this->width; ++idx, ++c) {
-	    double pos = mapping.index2pos(idx);
-	    points.push_back({pos,*c});
-	  }
+	void fill_line_noconv(std::vector<ccmpl::Point>& points) const {
+	  this->xsom::tab1d::Mapping<double>::fill_line(points);
 	}
 
 	double operator()(double pos) const {
-	  return this->ws.dst[mapping.pos2rank(pos)];
+	  return convolution.ws.dst[mapping.pos2rank(pos)];
 	}
 	
 	double get_noconv(double pos) const {
-	  return this->data[mapping.pos2rank(pos)];
+	  return this_>xsom::tab1d::Mapping<double>::operator()(pos);
 	}
 	
 	double bmu() const {
 	  this->convolve();
-	  unsigned int w;
-	  double* it = this->ws.dst;
-	  unsigned int wmax = 0;
-	  double       max  = *it;
-	  double       m;
-	  for(w=0;w<this->width;++w,++it) 
-	    if((m = *it) > max) {
-	      wmax = w;
-	      max = m;
-	    }
-	  return mapping.index2pos(wmax);
+	  auto begin = convolution.ws.dst;
+	  auto end   = begin + mapping.size;
+	  return mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	}
-	//    double bmu_stochastic() const {
-	//        this->convolve();
-	//        unsigned int w;
-	//        double* it = this->ws.dst;
-	//        double       sum  = 0;
-	//        for(w=0; w < this->width; ++w,++it)
-	//            sum += *it;
-	//
-	//        double p = std::rand()/double(RAND_MAX) * sum;
-	//        it = this->ws.dst;
-	//        sum = *it;
-	//        w = 0;
-	//        while(sum < p) {
-	//            ++w;
-	//            sum += *(it++);
-	//        }
-	//
-	//        return mapping.index2pos(w);
-	//    }
+	
+	double bmu_noconv() const {
+	  return this->xsom::tab1d::Mapping<double>::bmu();
+	}
       };
 
-      inline Convolution convolution(double sigma, Convolution::KernelType kernel_type,
-				     const Mapping& m) {
-	return Convolution(sigma, kernel_type, m);
+      inline Convolution convolution(const Mapping& m, double sigma, Convolution::KernelType kernel_type) {
+	return Convolution(m, sigma, kernel_type);
       }
     }
   }
@@ -403,98 +366,110 @@ namespace xsom {
 
   namespace tab2d {
     namespace fft {
-      class Convolution : public xsom::tab::fft::Convolution {
-      private:
 
-	std::function<bool (const xsom::Point2D<double>&)> pos_is_valid;
-      
+      class Convolution : public xsom::tab2d::Mapping<double> {
+      private :
+
+	xsom::tab::fft::Convolution convolution;
+
       public:
-	const Mapping& mapping;
-      
+
 	template<typename fctPOS_IS_VALID>
-	Convolution(double sigma, KernelType kernel_type,
-		    const Mapping& m,
-		    const fctPOS_IS_VALID& fct_pos_is_valid) 
-	  : xsom::tab::fft::Convolution(m.size.w,m.size.h,sigma,kernel_type),
-	    pos_is_valid(fct_pos_is_valid),
-	    mapping(m) {
+	Convolution(const Mapping& m,
+		    const fctPOS_IS_VALID& fct_pos_is_valid,
+		    double sigma, KernelType kernel_type)
+	  : xsom::tab2d::Mapping<double>(m,fct_pos_is_valid),
+	    convolution(m.size.w, m.size.h, sigma, this->content, kernel_type) {}
+
+
+	double operator()(xsom::Point2D<double> pos) const {
+	  return convolution.ws.dst[mapping.pos2rank(pos)];
 	}
 
-	virtual ~Convolution() {}     
-		     
-	virtual void learn(std::function<double (const xsom::Point2D<double>&)> fct_value_at) {
-	  
-	  xsom::Index2D idx;
-	  auto c   = this->data.begin();
-	  for(idx.h = 0; idx.h < this->height; ++idx.h)
-	    for(idx.w = 0; idx.w < this->width; ++idx.w, ++c) {
-	      xsom::Point2D<double> pos = mapping.index2pos(idx);
-	      if(pos_is_valid(pos))
-		*c = fct_value_at(pos);
-	      else
-		*c = 0;
-	    }
-	}
-      
-	virtual void fill_plot(std::vector<ccmpl::ValueAt>& points) const {
-	  points.clear();
-
-	  xsom::Index2D idx;
-	  double* c = this->ws.dst;
-	  for(idx.h = 0; idx.h < this->height; ++idx.h)
-	    for(idx.w = 0; idx.w < this->width; ++idx.w, ++c) {
-	      xsom::Point2D<double> pos = mapping.index2pos(idx);
-	      if(pos_is_valid(pos))
-		points.push_back({pos.x,pos.y,*c});
-	    }
-	}
-      
-      
-	virtual void fill_plot_noconv(std::vector<ccmpl::ValueAt>& points) const {
-	  points.clear();
-
-	  xsom::Index2D idx;
-	  auto c   = this->data.begin();
-	  for(idx.h = 0; idx.h < this->height; ++idx.h)
-	    for(idx.w = 0; idx.w < this->width; ++idx.w, ++c) {
-	      xsom::Point2D<double> pos = mapping.index2pos(idx);
-	      if(pos_is_valid(pos))
-		points.push_back({pos.x,pos.y,*c});
-	    }
-	}
-
-	double operator()(const xsom::Point2D<double>& pos) const {
-	  return this->ws.dst[mapping.pos2rank(pos)];
+	void convolve() {
+	  convolution.convolve();
 	}
 	
-	double get_noconv(const xsom::Point2D<double>& pos) const {
-	  return this->data[mapping.pos2rank(pos)];
+	double get_noconv(xsom::Point2D<double> pos) const {
+	  return this_>xsom::tab2d::Mapping<double>::operator()(pos);
 	}
-      
-	virtual xsom::Point2D<double> bmu() const {
-	  this->convolve();
-	  unsigned int w,h;
-	  double* it = this->ws.dst;
-	  unsigned int wmax = 0;
-	  unsigned int hmax = 0;
-	  double       max  = *it;
-	  double       m;
-	  for(h=0;h<this->height;++h)
-	    for(w=0;w<this->width;++w,++it) 
-	      if((m = *it) > max) {
-		wmax = w;
-		hmax = h;
-		max = m;
-	      }
-	  return mapping.index2pos({wmax,hmax});
+	
+	double bmu() const {
+	  convolution.convolve();
+	  auto begin = convolution.ws.dst;
+	  auto end   = begin + mapping.size;
+	  return mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
+	}
+	
+	double bmu_noconv() const {
+	  return this->xsom::tab2d::Mapping<double>::bmu();
+	}
+
+	
+	void fill_surface(std::vector<ccmpl::ValueAt>& points) {
+	  points.clear();
+
+	  xsom::Index2D idx;
+	  unsigned int width  = mapping.size.w;
+	  unsigned int height = mapping.size.h;
+	  auto c   = convolution.ws.dst;
+	  for(idx.h = 0; idx.h < height; ++idx.h)
+	    for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	      xsom::Point2D<double> pos = mapping.index2pos(idx);
+	      if(pos_is_valid(pos))
+		points.push_back({pos.x,pos.y,value_of(*c)});
+	    }
+	}
+	
+	void fill_surface_noconv(std::vector<ccmpl::ValueAt>& points) {
+	  this->xsom::tab2d::Mapping<double>::fill_surface_noconv([](double x) {return x;}, points);
+	}
+
+	void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+			     unsigned int& width, unsigned int& depth) {
+	  depth = 1;
+	  width = mapping.size.w;
+	  x.clear();
+	  y.clear();
+	  z.clear();
+	  auto outx = std::back_inserter(x);
+	  auto outy = std::back_inserter(y);
+	  auto outz = std::back_inserter(z);
+	
+	  xsom::Index2D idx;
+	  unsigned int width  = mapping.size.w;
+	  unsigned int height = mapping.size.h;
+	  auto c = convolution.ws.dst;
+
+	  idx.h = 0;
+	  *(outy++) = mapping.index2pos({0,0}).y;
+	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
+	    auto pos = mapping.index2pos(idx);
+	    *(outx++) = pos.x;
+	    *(outz++) = value_of_content(*c);
+	  }
+	
+	  for(++idx.h; idx.h < height; ++idx.h) {
+	    idx.w = 0;
+	    auto pos = mapping.index2pos(idx);
+	    *(outy++) = pos.y
+	      *(outz++) = value_of_content(*c);
+	    for(idx.w = 1; idx.w < width; ++idx.w, ++c)
+	      *(outz++) = value_of_content(*c);
+	  }
+	}
+	
+	void fill_image_gray_noconv(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+				    unsigned int& width, unsigned int& depth) {
+	  return this->xsom::tab2d::Mapping<double>::fill_image_gray([](double x) {return x;},x,y,z,width,depth);
 	}
       };
 
       template<typename fctPOS_IS_VALID> 
-      Convolution convolution(double sigma, Convolution::KernelType kernel_type,
-			      const Mapping& m,
-			      const fctPOS_IS_VALID& fct_pos_is_valid) {
-	return Convolution(sigma,kernel_type, m,fct_pos_is_valid);
+      Convolution convolution(const Mapping& m,
+			      const fctPOS_IS_VALID& fct_pos_is_valid,
+			      double sigma, Convolution::KernelType kernel_type) {
+	return Convolution(m,fct_pos_is_valid,sigma,kernel_type);
       }
     }
   }
