@@ -4,6 +4,10 @@
 #include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <functional>
+
+#include <ccmpl.hpp>
+#include <xsomPoint.hpp>
 
 namespace xsom {
 
@@ -24,10 +28,10 @@ namespace xsom {
 	      INDEX    size) 
 	: min(pos_min), max(pos_max), size(size) {}
 
-      INDEX        pos2index(POSITION      pos)  const {}
-      POSITION     index2pos(INDEX         idx)  const {}
-      unsigned int pos2rank (POSITION      pos)  const {}
-      POSITION     rank2pos (unsigned int rank)  const {}
+      INDEX        pos2index(POSITION      pos)  const {return INDEX();}
+      POSITION     index2pos(INDEX         idx)  const {return POSITION();}
+      unsigned int pos2rank (POSITION      pos)  const {return 0;}
+      POSITION     rank2pos (unsigned int rank)  const {return POSITION();}
     };
 
     template<typename CONTENT, typename MAPPING>
@@ -61,7 +65,7 @@ namespace xsom {
       
       typename MAPPING::position_type bmu() const {
 	auto it = std::max_element(content.begin(), content.end());
-	return mapping.rank2pos((unsigned int)(std::distance(content.begin(), std::max_element(content.begin(), content.end())));
+	return mapping.rank2pos((unsigned int)(std::distance(content.begin(), std::max_element(content.begin(), content.end()))));
       }
 	  
       void write(std::ostream& os) const {
@@ -96,15 +100,15 @@ namespace xsom {
 	coefx = (max-min)/(nb_pos-1.);
       }
       
-      unsigned int pos2index(double pos)  const override {
+      unsigned int pos2index(double pos)  const {
 	return (unsigned int)((pos-min)*coefw+.5);
       }
       
-      double index2pos(unsigned int idx)  const override {
+      double index2pos(unsigned int idx)  const {
 	return idx*coefx+min;
       }
       
-      unsigned int pos2rank (double pos)  const override {
+      unsigned int pos2rank (double pos)  const {
 	return (unsigned int)((pos-min)*coefw+.5);
       }
       
@@ -128,10 +132,10 @@ namespace xsom {
     };
 
     template<typename CONTENT>
-    class Table : public Table_<typename CONTENT> {
+    class Table : public Table_<CONTENT> {
     public:
 
-      using Table_<typename CONTENT>::Table_;
+      using Table_<CONTENT>::Table_;
       
       template<typename ValueOf>
       void fill_line(const ValueOf& value_of_content,
@@ -139,10 +143,10 @@ namespace xsom {
 	points.clear();
 
 	unsigned int rank;
-	unsigned int size  = mapping.size;
-	auto c   = l.content.begin();
-	for(idx = 0; idx < size; ++idx, ++c) {
-	  pos = l.mapping.rank2pos(idx);
+	unsigned int size  = this->mapping.size;
+	auto c   = this->content.begin();
+	for(rank = 0; rank < size; ++rank, ++c) {
+	  auto pos = this->mapping.rank2pos(rank);
 	  points.push_back({pos, value_of_content(*c)});
 	}
       }
@@ -158,10 +162,10 @@ namespace xsom {
 	points.clear();
 
 	unsigned int rank;
-	unsigned int size  = mapping.size;
-	auto c   = l.content.begin();
-	for(idx = 0; idx < size; ++idx, ++c) {
-	  pos = l.mapping.rank2pos(idx);
+	unsigned int size  = this->mapping.size;
+	auto c   = this->content.begin();
+	for(rank = 0; rank < size; ++rank, ++c) {
+	  auto pos = this->mapping.rank2pos(rank);
 	  points.push_back({pos, *c});
 	}
       }
@@ -176,28 +180,29 @@ namespace xsom {
 
     
   namespace tab2d {
-    class Mapping : public xsom::tab::Mapping<xsom::Index2D, som::Point2D<double> > {
+    class Mapping : public xsom::tab::Mapping<xsom::Index2D, xsom::Point2D<double> > {
+    public:
       typedef xsom::Point2D<double>               position_type;
       typedef xsom::Index2D                       index_type;
       double coefx,coefy,coefw,coefh;
       
       Mapping(position_type pos_min, position_type pos_max, index_type size)
-	: xsom::tab::Mapping<xsom::Index2D, som::Point2D<double> >(pos_min, pos_max, size) {
+	: xsom::tab::Mapping<xsom::Index2D, xsom::Point2D<double> >(pos_min, pos_max, size) {
 	coefw = (size.w-1.)/(max.x-min.x);
 	coefh = (size.h-1.)/(max.y-min.y);
 	coefx = (max.x-min.x)/(size.w-1.);
 	coefy = (max.y-min.y)/(size.h-1.);
       }
       
-      index_type pos2index(double pos)  const override {
+      index_type pos2index(position_type pos)  const {
 	return { (unsigned int)((pos.x-this->min.x)*coefw+.5), (unsigned int)((pos.y-this->min.y)*coefh+.5)};
       }
       
-      position_type index2pos(unsigned int idx)  const override {
+      position_type index2pos(index_type idx)  const {
 	return {idx.w*coefx+this->min.x, idx.h*coefy+this->min.y};
       }
       
-      unsigned int pos2rank (double pos)  const override {
+      unsigned int pos2rank (position_type pos)  const {
 	return (unsigned int)((pos.y-this->min.y)*coefh+.5)*size.w+(unsigned int)((pos.x-this->min.x)*coefw+.5);
       }
       
@@ -228,7 +233,7 @@ namespace xsom {
       void learn(std::function<CONTENT (const xsom::Point2D<double>&)> fct_value_at) {
 	unsigned int rank;
 	unsigned int size  = mapping.size;
-	auto c   = content.begin();
+	auto c   = this->content.begin();
 	for(rank = 0; rank < size; ++rank, ++c) {
 	  auto pos = mapping.rank2pos(rank);
 	  if(pos_is_valid(pos))
@@ -245,11 +250,11 @@ namespace xsom {
 	xsom::Index2D idx;
 	unsigned int width  = mapping.size.w;
 	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
+	auto c   = this->content.begin();
 	for(idx.h = 0; idx.h < height; ++idx.h)
 	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
 	    xsom::Point2D<double> pos = mapping.index2pos(idx);
-	    if(pos_is_valid(pos))
+	    if(this->pos_is_valid(pos))
 	      points.push_back({pos.x,pos.y,ccmplcolor_of_content(*c)});
 	  }
       }
@@ -260,7 +265,6 @@ namespace xsom {
 			  unsigned int& width, unsigned int& depth) {
 	depth = 3;
 	width = mapping.size.w;
-	width = mapping.size.w;
 	x.clear();
 	y.clear();
 	z.clear();
@@ -269,9 +273,8 @@ namespace xsom {
 	auto outz = std::back_inserter(z);
 	
 	xsom::Index2D idx;
-	unsigned int width  = mapping.size.w;
 	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
+	auto c   = this->content.begin();
 
 	idx.h = 0;
 	*(outy++) = mapping.index2pos({0,0}).y;
@@ -287,7 +290,7 @@ namespace xsom {
 	for(++idx.h; idx.h < height; ++idx.h) {
 	  idx.w = 0;
 	  auto pos = mapping.index2pos(idx);
-	  *(outy++) = pos.y
+	  *(outy++) = pos.y;
 	  *(outz++) = value_of_content(*c);
 	  for(idx.w = 1; idx.w < width; ++idx.w, ++c) {
 	    auto color = ccmplcolor_of_content(*c);
@@ -312,13 +315,13 @@ namespace xsom {
 	points.clear();
 
 	xsom::Index2D idx;
-	unsigned int width  = mapping.size.w;
-	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
+	unsigned int width  = this->mapping.size.w;
+	unsigned int height = this->mapping.size.h;
+	auto c   = this->content.begin();
 	for(idx.h = 0; idx.h < height; ++idx.h)
 	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	    xsom::Point2D<double> pos = mapping.index2pos(idx);
-	    if(pos_is_valid(pos))
+	    xsom::Point2D<double> pos = this->mapping.index2pos(idx);
+	    if(this->pos_is_valid(pos))
 	      points.push_back({pos.x,pos.y,value_of_content(*c)});
 	  }
       }
@@ -328,7 +331,7 @@ namespace xsom {
 			   std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
 			   unsigned int& width, unsigned int& depth) {
 	depth = 1;
-	width = mapping.size.w;
+	width = this->mapping.size.w;
 	x.clear();
 	y.clear();
 	z.clear();
@@ -337,22 +340,21 @@ namespace xsom {
 	auto outz = std::back_inserter(z);
 	
 	xsom::Index2D idx;
-	unsigned int width  = mapping.size.w;
-	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
+	unsigned int height = this->mapping.size.h;
+	auto c   = this->content.begin();
 
 	idx.h = 0;
-	*(outy++) = mapping.index2pos({0,0}).y;
+	*(outy++) = this->mapping.index2pos({0,0}).y;
 	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	  auto pos = mapping.index2pos(idx);
+	  auto pos = this->mapping.index2pos(idx);
 	  *(outx++) = pos.x;
 	  *(outz++) = value_of_content(*c);
 	}
 	
 	for(++idx.h; idx.h < height; ++idx.h) {
 	  idx.w = 0;
-	  auto pos = mapping.index2pos(idx);
-	  *(outy++) = pos.y
+	  auto pos = this->mapping.index2pos(idx);
+	  *(outy++) = pos.y;
 	  *(outz++) = value_of_content(*c);
 	  for(idx.w = 1; idx.w < width; ++idx.w, ++c)
 	    *(outz++) = value_of_content(*c);
@@ -371,13 +373,13 @@ namespace xsom {
 	points.clear();
 
 	xsom::Index2D idx;
-	unsigned int width  = mapping.size.w;
-	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
+	unsigned int width  = this->mapping.size.w;
+	unsigned int height = this->mapping.size.h;
+	auto c   = this->content.begin();
 	for(idx.h = 0; idx.h < height; ++idx.h)
 	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	    xsom::Point2D<double> pos = mapping.index2pos(idx);
-	    if(pos_is_valid(pos))
+	    xsom::Point2D<double> pos = this->mapping.index2pos(idx);
+	    if(this->pos_is_valid(pos))
 	      points.push_back({pos.x,pos.y,*c});
 	  }
       }
@@ -385,7 +387,7 @@ namespace xsom {
       void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
 			   unsigned int& width, unsigned int& depth) {
 	depth = 1;
-	width = mapping.size.w;
+	width = this->mapping.size.w;
 	x.clear();
 	y.clear();
 	z.clear();
@@ -394,22 +396,21 @@ namespace xsom {
 	auto outz = std::back_inserter(z);
 	
 	xsom::Index2D idx;
-	unsigned int width  = mapping.size.w;
-	unsigned int height = mapping.size.h;
-	auto c   = content.begin();
+	unsigned int height = this->mapping.size.h;
+	auto c   = this->content.begin();
 
 	idx.h = 0;
-	*(outy++) = mapping.index2pos({0,0}).y;
+	*(outy++) = this->mapping.index2pos({0,0}).y;
 	for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	  auto pos = mapping.index2pos(idx);
+	  auto pos = this->mapping.index2pos(idx);
 	  *(outx++) = pos.x;
 	  *(outz++) = *c;
 	}
 	
 	for(++idx.h; idx.h < height; ++idx.h) {
 	  idx.w = 0;
-	  auto pos = mapping.index2pos(idx);
-	  *(outy++) = pos.y
+	  auto pos = this->mapping.index2pos(idx);
+	  *(outy++) = pos.y;
 	  *(outz++) = *c;
 	  for(idx.w = 1; idx.w < width; ++idx.w, ++c)
 	    *(outz++) = *c;
