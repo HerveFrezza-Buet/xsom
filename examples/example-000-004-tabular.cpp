@@ -3,115 +3,54 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <cmath>
 
 #include <ccmpl.hpp>
 
 using namespace std::placeholders;
 
-typedef xsom::Point2D<double>     Pos;
-typedef double                    Weight;
-typedef double                    Input;
-typedef double                    Act;
-typedef xsom::tab2d::Table<Act>     Acts;
-typedef xsom::tab2d::Table<Weight>  Weights;
+#define PI 3.1415926544
 
-Pos random_pos(void) {
-  Pos p;
 
-  do {
-    p.x = -1 + std::rand()/(1.+RAND_MAX)*2;
-    p.y = -1 + std::rand()/(1.+RAND_MAX)*2;
-  } while(p*p > 1);
+// This shows how to handle tabular data. xsom::tab2d::* classes and
+// functions are used, since 2D arrays are considered. Similar code
+// can also be obtained for 1D array thanks to xsom::tab1d::*.
 
-  return p;
+// Let us define a parametrized surface, torus : (u,v) -> (x,y,z)
+
+struct Point3D {
+  double x,y,z;
+};
+
+#define torus_r  .5
+#define torus_R  (1-torus_r)
+Point3D torus(double u,double v) { // u,v in [0,2pi]
+  double r = torus_R + torus_r*std::cos(v);
+  return {r*std::cos(u), r*std::sin(u), torus_r*std::sin(v)};
 }
 
-bool inside_the_map(const Pos& p) {
-  return p*p <= 1;
-}
+ccmpl::RGB color_of_3d(const Point3D& p) {return {(p.x+1)/2, (p.y+1)/2, (p.z+torus_r)/(2*torus_r)};}
+double     value_of_3d(const Point3D& p) {return  (p.x+1)/2                                       ;}
 
-// This is a fake non-smooth activity function.
+#define NB_U_BIG 100
+#define NB_V_BIG  30
 
-double activity(const Pos& p) {
-  if(p*p < .25) {
-    if(p.x*p.y > 0)
+// let us also define a function, f : (u,v) -> value
+
+double v(const xsom::Point2D<double>& uv) {
+  if(uv*uv < .25) {
+    if(uv.x*uv.y > 0)
       return 1;
     else
       return 0;
   }
-
-  if(p.x*p.y > 0)
+  if(uv.x*uv.y > 0)
     return 0;
   else
     return 1;
 }
 
-double merge(const Acts& acts,const Pos& p) {
-  return acts(p);
-}
-
-
-void update_output(Pos& out,const Pos& request) {
-  out = request;
-}
-
-void set_weight(std::function<Weight (const Pos&)> weight_at) {
-  // We handle no weights here.
-}
-
-Weight get_weight(const Pos& p) {
-  // We handle no weights here.
-  return 0;
-}
-
-double match(const Pos& p, Weight w, double x) {
-  // We handle no weights here.
-  return 0;
-}
-
-double h(const Pos& p) {
-  // This is dummy.
-  return 0;
-}
-
-
-// Data transfer to plotting structures.
-
-void fill_activity(std::vector<ccmpl::ValueAt>& points) {
-  points.clear();
-  for(unsigned int i=0; i < 5000; ++i) {
-    auto p = random_pos();
-    points.push_back({p.x,p.y,activity(p)});
-  }
-}
-
-void fill_dot(const Pos& p, ccmpl::Point& pt) {
-  pt.x = p.x;
-  pt.y = p.y;
-}
-
-void fill_plot(const Acts& l, std::vector<ccmpl::ValueAt>& points) {
-  points.clear();
-
-  xsom::Index2D idx;
-  unsigned int width  = l.mapping.size.w;
-  unsigned int height = l.mapping.size.h;
-  auto c   = l.content.begin();
-  for(idx.h = 0; idx.h < height; ++idx.h)
-    for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-      xsom::Point2D<double> pos = l.mapping.index2pos(idx);
-      if(l.pos_is_valid(pos))
-	points.push_back({pos.x,pos.y,*c});
-    }
-}
-
-
-// The space [-1,1]x[-1,1] is mapped to a [0,101[x[0,101[ grid, where
-// the convolution is performed. The mapping provides conversion
-// functions.
-
-#define CONVOLUTION_SIDE 101
-#define GRID_SIGMA       (CONVOLUTION_SIDE/20.0)
+// Let us play with tabular functions.
 
 #define VIEW_FILE "viewer-000-004.py"
 int main(int argc, char* argv[]) {
@@ -124,120 +63,63 @@ int main(int argc, char* argv[]) {
 
   bool generate_mode = std::string(argv[1])=="generate";
 
-  ///////////
-  //       //
-  // State //
-  //       //
-  ///////////
-  
-  // Conversion from positions to row-column numbers.
-
-  auto big_mapping 
-    = xsom::tab2d::mapping<CONVOLUTION_SIDE,
-			 CONVOLUTION_SIDE>({-1,-1},{1,1}); // min_pos, max_pos
-
-  auto small_mapping 
-    = xsom::tab2d::mapping<10,20>({-1,-1},{1,1}); 
-
-  // This stores double values within a grid.
-  auto grid = xsom::tab2d::table<double>(small_mapping,inside_the_map); 
-  // grid initialization.
-  for(auto& e : grid.content) e=0; 
-
-  // This stores the convolution of some bi-dimentional signal. The
-  // convolution is based on a tabular representation, since a
-  // discrete Fourrier Transform is used.
-  auto fft1 = xsom::tab2d::fft::convolution(GRID_SIGMA,xsom::tab::fft::Convolution::KernelType::Gaussian, big_mapping,inside_the_map);
-  auto fft2 = xsom::tab2d::fft::convolution(GRID_SIGMA,xsom::tab::fft::Convolution::KernelType::Gaussian, big_mapping,inside_the_map);
-  Pos win1;
-  Pos win2;
-  double input;
-
-  //////////
-  //      //
-  // Plot //
-  //      //
-  //////////
-  
-
-  auto display      = ccmpl::layout(10,10, {"##","##"});
+  auto display      = ccmpl::layout(10,5, {"##"});
   std::string flags = "";
 
+  // Let us start with the more general case. We will provide a
+  // tabular version for the torus function. We define the function
+  // for all (u,v) pairs (the lambda function always return true).
   
-  display()         = {-1.,1.,-1.,1};
-  display()         = ccmpl::show_tics(false,false);
-  display().title   = "10x20 Grid";
-  display()        += ccmpl::surface("cmap='gray'", 0, 1, std::bind(&xsom::tab2d::fill_plot_values, std::ref(grid), _1));           flags += '#';
-  display()        += ccmpl::dot("c='r',lw=1,s=20,zorder=2", std::bind(fill_dot, std::ref(win1), _1));                              flags += '#';
+  auto torus_mapping = xsom::tab2d::mapping({0, 0}, {2*PI, 2*PI}, {NB_U_BIG, NB_V_BIG});
+  auto tabular_torus = xsom::tab2d::table<Point3D>(torus_mapping,
+						   [](const xsom::Point2D<double>& uv) {return true;});
+  
+  // We set the values in the grid from the torus function. The grid contains Poin3D values.
+  tabular_torus.learn([](const xsom::Point2D<double>& p) {return torus(p.x, p.y);}); 
+
+  // This displays a color image from the table. We have to provide
+  // fill_image_rgb with a function that converts the content of the
+  // map (Point3D) into a color.
+ 
+  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::show_tics(true, true);
+  display().title   = "torus";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        +=  ccmpl::image("interpolation='bilinear'",
+  				    [&tabular_torus](std::vector<double>& x,
+  						     std::vector<double>& y,
+  						     std::vector<double>& z,
+  						     unsigned int& width,
+  						     unsigned int& depth) {tabular_torus.fill_image_rgb(color_of_3d, x, y, z, width, depth);});  flags += '#';
+  
+  // The following does the same with a 1-depth image.
+  
   display++;
-  display()         = {-1.,1.,-1.,1};
-  display()         = ccmpl::show_tics(false,false);
-  display().title   = "101x101 convolution of the 10x10 grid";
-  display()        += ccmpl::surface("cmap='jet'", 0, 1, std::bind(&xsom::tab2d::fft::Convolution::fill_plot, std::ref(fft1), _1)); flags += '#';
-  display++;
-  display()         = {-1.,1.,-1.,1};
-  display()         = ccmpl::show_tics(false,false);
-  display().title   = "Raw values";
-  display()        += ccmpl::surface("cmap='gray'", 0, 1, fill_activity);                                                           flags += '#';
-  display()        += ccmpl::dot("c='r',lw=1,s=20,zorder=2", std::bind(fill_dot, std::ref(win2), _1));                              flags += '#';
-  display++;
-  display()         = {-1.,1.,-1.,1};
-  display()         = ccmpl::show_tics(false,false);
-  display().title   = "101x101 convolution raw values";
-  display()        += ccmpl::surface("cmap='jet'", 0, 1, std::bind(&xsom::tab2d::fft::Convolution::fill_plot, std::ref(fft2), _1)); flags += '#';
+  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::show_tics(true, true);
+  display().title   = "torus";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        +=  ccmpl::image("cmap='jet', interpolation='bilinear', clim=(0,1)",
+				    [&tabular_torus](std::vector<double>& x,
+						     std::vector<double>& y,
+						     std::vector<double>& z,
+						     unsigned int& width,
+						     unsigned int& depth) {tabular_torus.fill_image_gray(value_of_3d, x, y, z, width, depth);});  flags += '#';
+
   
   if(generate_mode) {
     display.make_python(VIEW_FILE,false);
     return 0;
   }
-
-  /////////
-  //     //
-  // Run //
-  //     //
-  /////////
-
-  // Building layers and maps.
-
-  // This layer is useless here... it only shows how to use the
-  // &xsom::tab2d::Table<double>::learn method pointer in the layer
-  // definition.
-  auto layer
-    = xsom::layer<Weight,
-  		  Pos>(0,input,match,h,get_weight,
-  		       std::bind(&xsom::tab2d::Table<double>::learn, std::ref(grid), _1),
-  		       set_weight);
-
-  // This map has no layers. It computes its outpur from a merge
-  // function... that provides the content of grid.
-  auto map 
-    = xsom::map(win1,
-  		std::bind(&xsom::tab2d::fft::Convolution::learn, std::ref(fft1), _1),
-  		std::bind(merge, std::ref(grid), _1),
-  		std::bind(&xsom::tab2d::fft::Convolution::bmu, std::ref(fft1)),
-  		update_output);
-
-
-  auto archi = xsom::setup::network();
-  archi += map;
-				   
-  // Run the computation. 
-
-  grid.learn(activity); // Let us set explicitly the grid values, since no grid evaluation is performed.
-  archi.update();       // updating the maps calls fft1.bmu, which computes the convolution.
-
-  // This is a convolution without any map/layer context. It show how
-  // convolution can be handled.
-  fft2.learn(activity) ;                    // This set the values into the source internal grid.
-  double val0  = fft2.get_noconv(Pos(0,0)); // Raw values can be retrieved.
-  fft2.convolve();                          // This computes the convolution.
-  double conv0 = fft2(Pos(0,0));            // The values after convolution can be retrieved.
-  win2 = fft2.bmu();                        // This return the position where the convlution is the higest.
-  // Nota : fft2.bmu() performs a convolution.
-  std::cerr << "Values at (0,0) : raw = " << val0 << ", conv = " << conv0 << std::endl;
-	   	     
+  
   std::cout << display(flags,"example-000-004.pdf", ccmpl::nofile())
   	    << ccmpl::stop;
-
   return 0;
 }
+
+
+

@@ -331,9 +331,9 @@ namespace xsom {
 	  unsigned int rank;
 	  unsigned int length  = this->mapping.length;
 	  auto c   = convolution.ws.dst;
-	  for(rank = 0; rank < length; ++rank, ++c) {
+	  for(rank = 0; rank < length; ++rank) {
 	    auto pos = this->mapping.rank2pos(rank);
-	    points.push_back({pos, *c});
+	    points.push_back({pos, *(c++)});
 	  }
 	}
 	
@@ -342,7 +342,7 @@ namespace xsom {
 	}
 
 	double operator()(double pos) const {
-	  return convolution.ws.dst[mapping.pos2rank(pos)];
+	  return convolution.ws.dst[this->mapping.pos2rank(pos)];
 	}
 	
 	double get_noconv(double pos) const {
@@ -352,8 +352,8 @@ namespace xsom {
 	double bmu() const {
 	  convolution.convolve();
 	  auto begin = convolution.ws.dst;
-	  auto end   = begin + mapping.length;
-	  return mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
+	  auto end   = begin + this->mapping.length;
+	  return this->mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	}
 	
 	double bmu_noconv() const {
@@ -388,7 +388,7 @@ namespace xsom {
 
 
 	double operator()(xsom::Point2D<double> pos) const {
-	  return convolution.ws.dst[mapping.pos2rank(pos)];
+	  return convolution.ws.dst[this->mapping.pos2rank(pos)];
 	}
 
 	void convolve() {
@@ -402,8 +402,8 @@ namespace xsom {
 	xsom::Point2D<double> bmu() const {
 	  convolution.convolve();
 	  auto begin = convolution.ws.dst;
-	  auto end   = begin + mapping.length;
-	  return mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
+	  auto end   = begin + this->mapping.length;
+	  return this->mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	}
 	
 	xsom::Point2D<double> bmu_noconv() const {
@@ -415,14 +415,14 @@ namespace xsom {
 	  points.clear();
 
 	  xsom::Index2D idx;
-	  unsigned int width  = mapping.size.w;
-	  unsigned int height = mapping.size.h;
+	  unsigned int width  = this->mapping.size.w;
+	  unsigned int height = this->mapping.size.h;
 	  auto c   = convolution.ws.dst;
 	  for(idx.h = 0; idx.h < height; ++idx.h)
-	    for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	      xsom::Point2D<double> pos = mapping.index2pos(idx);
+	    for(idx.w = 0; idx.w < width; ++idx.w) {
+	      xsom::Point2D<double> pos = this->mapping.index2pos(idx);
 	      if(pos_is_valid(pos))
-		points.push_back({pos.x,pos.y,*c});
+		points.push_back({pos.x,pos.y,*(c++)});
 	    }
 	}
 	
@@ -433,7 +433,7 @@ namespace xsom {
 	void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
 			     unsigned int& width, unsigned int& depth) const {
 	  depth = 1;
-	  width = mapping.size.w;
+	  width = this->mapping.size.w;
 	  x.clear();
 	  y.clear();
 	  z.clear();
@@ -442,24 +442,24 @@ namespace xsom {
 	  auto outz = std::back_inserter(z);
 	
 	  xsom::Index2D idx;
-	  unsigned int height = mapping.size.h;
+	  unsigned int height = this->mapping.size.h;
 	  auto c = convolution.ws.dst;
 
 	  idx.h = 0;
-	  *(outy++) = mapping.index2pos({0,0}).y;
-	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
-	    auto pos = mapping.index2pos(idx);
+	  *(outy++) = this->mapping.index2pos({0,0}).y;
+	  for(idx.w = 0; idx.w < width; ++idx.w) {
+	    auto pos = this->mapping.index2pos(idx);
 	    *(outx++) = pos.x;
-	    *(outz++) = *c;
+	    *(outz++) = *(c++);
 	  }
 	
 	  for(++idx.h; idx.h < height; ++idx.h) {
 	    idx.w = 0;
-	    auto pos = mapping.index2pos(idx);
+	    auto pos = this->mapping.index2pos(idx);
 	    *(outy++) = pos.y;
-	    *(outz++) = *c;
-	    for(idx.w = 1; idx.w < width; ++idx.w, ++c)
-	      *(outz++) = *c;
+	    *(outz++) = *(c++);
+	    for(idx.w = 1; idx.w < width; ++idx.w)
+	      *(outz++) = *(c++);
 	  }
 	}
 	
