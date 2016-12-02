@@ -399,14 +399,14 @@ namespace xsom {
 	  return this->xsom::tab2d::Table<double>::operator()(pos);
 	}
 	
-	double bmu() const {
+	xsom::Point2D<double> bmu() const {
 	  convolution.convolve();
 	  auto begin = convolution.ws.dst;
 	  auto end   = begin + mapping.length;
 	  return mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	}
 	
-	double bmu_noconv() const {
+	xsom::Point2D<double> bmu_noconv() const {
 	  return this->xsom::tab2d::Table<double>::bmu();
 	}
 
@@ -422,12 +422,12 @@ namespace xsom {
 	    for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
 	      xsom::Point2D<double> pos = mapping.index2pos(idx);
 	      if(pos_is_valid(pos))
-		points.push_back({pos.x,pos.y,value_of(*c)});
+		points.push_back({pos.x,pos.y,*c});
 	    }
 	}
 	
 	void fill_surface_noconv(std::vector<ccmpl::ValueAt>& points) const {
-	  this->xsom::tab2d::Table<double>::fill_surface_noconv(points);
+	  this->xsom::tab2d::Table<double>::fill_surface(points);
 	}
 
 	void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
@@ -442,7 +442,6 @@ namespace xsom {
 	  auto outz = std::back_inserter(z);
 	
 	  xsom::Index2D idx;
-	  unsigned int width  = mapping.size.w;
 	  unsigned int height = mapping.size.h;
 	  auto c = convolution.ws.dst;
 
@@ -451,16 +450,16 @@ namespace xsom {
 	  for(idx.w = 0; idx.w < width; ++idx.w, ++c) {
 	    auto pos = mapping.index2pos(idx);
 	    *(outx++) = pos.x;
-	    *(outz++) = value_of_content(*c);
+	    *(outz++) = *c;
 	  }
 	
 	  for(++idx.h; idx.h < height; ++idx.h) {
 	    idx.w = 0;
 	    auto pos = mapping.index2pos(idx);
-	    *(outy++) = pos.y
-	      *(outz++) = value_of_content(*c);
+	    *(outy++) = pos.y;
+	    *(outz++) = *c;
 	    for(idx.w = 1; idx.w < width; ++idx.w, ++c)
-	      *(outz++) = value_of_content(*c);
+	      *(outz++) = *c;
 	  }
 	}
 	

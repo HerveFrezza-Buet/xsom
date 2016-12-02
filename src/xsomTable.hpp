@@ -67,7 +67,6 @@ namespace xsom {
       }
       
       typename MAPPING::position_type bmu() const {
-	auto it = std::max_element(content.begin(), content.end());
 	return mapping.rank2pos((unsigned int)(std::distance(content.begin(), std::max_element(content.begin(), content.end()))));
       }
 	  
@@ -129,7 +128,6 @@ namespace xsom {
     template<typename CONTENT>
     class Table_ : public xsom::tab::Table<CONTENT,Mapping> {
     public:
-      const Mapping& mapping;
 
       Table_(const Mapping& mapping) : xsom::tab::Table<CONTENT,Mapping>(mapping) {}
 
