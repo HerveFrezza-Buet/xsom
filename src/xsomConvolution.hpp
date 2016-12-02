@@ -313,15 +313,15 @@ namespace xsom {
 
   namespace tab1d {
     namespace fft {
-      class Convolution : public xsom::tab1d::Table {
+      class Convolution : public xsom::tab1d::Table<double> {
       private :
 
-	xsom::tab::fft::Convolution convolution;
+	mutable xsom::tab::fft::Convolution convolution;
 
       public:
 
-	Convolution(const Table& m, double sigma, xsom::tab::fft::KernelType kernel_type)
-	  : xsom::tab1d::Table(m),
+	Convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type)
+	  : xsom::tab1d::Table<double>(m),
 	    convolution(m.size, 1, sigma, this->content, kernel_type) {}
 
 
@@ -329,10 +329,10 @@ namespace xsom {
 	  points.clear();
 
 	  unsigned int rank;
-	  unsigned int size  = this->mapping.size;
+	  unsigned int length  = this->mapping.length;
 	  auto c   = convolution.ws.dst;
-	  for(idx = 0; idx < size; ++idx, ++c) {
-	    pos = this->mapping.rank2pos(idx);
+	  for(rank = 0; rank < length; ++rank, ++c) {
+	    auto pos = this->mapping.rank2pos(rank);
 	    points.push_back({pos, *c});
 	  }
 	}
@@ -346,13 +346,13 @@ namespace xsom {
 	}
 	
 	double get_noconv(double pos) const {
-	  return this_>xsom::tab1d::Table<double>::operator()(pos);
+	  return this->xsom::tab1d::Table<double>::operator()(pos);
 	}
 	
 	double bmu() const {
-	  this->convolve();
+	  convolution.convolve();
 	  auto begin = convolution.ws.dst;
-	  auto end   = begin + mapping.size;
+	  auto end   = begin + mapping.length;
 	  return mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	}
 	
@@ -361,7 +361,7 @@ namespace xsom {
 	}
       };
 
-      inline Convolution convolution(const Table& m, double sigma, xsom::tab::fft::KernelType kernel_type) {
+      inline Convolution convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type) {
 	return Convolution(m, sigma, kernel_type);
       }
     }
@@ -372,15 +372,15 @@ namespace xsom {
   namespace tab2d {
     namespace fft {
 
-      class Convolution : public xsom::tab2d::Table {
+      class Convolution : public xsom::tab2d::Table<double> {
       private :
 
-	xsom::tab::fft::Convolution convolution;
+	mutable xsom::tab::fft::Convolution convolution;
 
       public:
 
 	template<typename fctPOS_IS_VALID>
-	Convolution(const Table& m,
+	Convolution(const  xsom::tab2d::Mapping& m,
 		    const fctPOS_IS_VALID& fct_pos_is_valid,
 		    double sigma, xsom::tab::fft::KernelType kernel_type)
 	  : xsom::tab2d::Table<double>(m,fct_pos_is_valid),
@@ -396,13 +396,13 @@ namespace xsom {
 	}
 	
 	double get_noconv(xsom::Point2D<double> pos) const {
-	  return this_>xsom::tab2d::Table<double>::operator()(pos);
+	  return this->xsom::tab2d::Table<double>::operator()(pos);
 	}
 	
 	double bmu() const {
 	  convolution.convolve();
 	  auto begin = convolution.ws.dst;
-	  auto end   = begin + mapping.size;
+	  auto end   = begin + mapping.length;
 	  return mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	}
 	
@@ -411,7 +411,7 @@ namespace xsom {
 	}
 
 	
-	void fill_surface(std::vector<ccmpl::ValueAt>& points) {
+	void fill_surface(std::vector<ccmpl::ValueAt>& points) const {
 	  points.clear();
 
 	  xsom::Index2D idx;
@@ -426,12 +426,12 @@ namespace xsom {
 	    }
 	}
 	
-	void fill_surface_noconv(std::vector<ccmpl::ValueAt>& points) {
+	void fill_surface_noconv(std::vector<ccmpl::ValueAt>& points) const {
 	  this->xsom::tab2d::Table<double>::fill_surface_noconv(points);
 	}
 
 	void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
-			     unsigned int& width, unsigned int& depth) {
+			     unsigned int& width, unsigned int& depth) const {
 	  depth = 1;
 	  width = mapping.size.w;
 	  x.clear();
@@ -465,13 +465,13 @@ namespace xsom {
 	}
 	
 	void fill_image_gray_noconv(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
-				    unsigned int& width, unsigned int& depth) {
+				    unsigned int& width, unsigned int& depth) const {
 	  return this->xsom::tab2d::Table<double>::fill_image_gray(x,y,z,width,depth);
 	}
       };
 
       template<typename fctPOS_IS_VALID> 
-      Convolution convolution(const Table& m,
+      Convolution convolution(const xsom::tab2d::Mapping& m,
 			      const fctPOS_IS_VALID& fct_pos_is_valid,
 			      double sigma, xsom::tab::fft::KernelType kernel_type) {
 	return Convolution(m,fct_pos_is_valid,sigma,kernel_type);

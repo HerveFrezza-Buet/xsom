@@ -19,6 +19,7 @@ namespace xsom {
       
       POSITION min,max;
       INDEX size;
+      unsigned int length;
 
       typedef INDEX    index_type;
       typedef POSITION position_type;
@@ -26,7 +27,9 @@ namespace xsom {
       Mapping(POSITION pos_min, 
 	      POSITION pos_max,
 	      INDEX    size) 
-	: min(pos_min), max(pos_max), size(size) {}
+	: min(pos_min), max(pos_max), size(size),
+	  length(0) // this has to be set by subclasses.
+      {}
 
       INDEX        pos2index(POSITION      pos)  const {return INDEX();}
       POSITION     index2pos(INDEX         idx)  const {return POSITION();}
@@ -43,7 +46,7 @@ namespace xsom {
 
       Table(const MAPPING& m) 
 	: mapping(m), 
-	  content(m.size)  {}
+	  content(m.length)  {}
 
       CONTENT operator()(typename MAPPING::position_type pos) const {
 	return content[mapping.pos2rank(pos)];
@@ -55,9 +58,9 @@ namespace xsom {
 
       void learn(std::function<CONTENT (typename MAPPING::position_type)> fct_value_at) {
 	unsigned int rank;
-	unsigned int size  = mapping.size;
+	unsigned int length  = mapping.length;
 	auto c   = content.begin();
-	for(rank = 0; rank < size; ++rank, ++c) {
+	for(rank = 0; rank < length; ++rank, ++c) {
 	  auto pos = mapping.rank2pos(rank);
 	  *c = fct_value_at(pos);
 	}
@@ -98,6 +101,7 @@ namespace xsom {
 	: xsom::tab::Mapping<unsigned int,double>(pos_min,pos_max,nb_pos) {
 	coefw = (nb_pos-1.)/(max-min);
 	coefx = (max-min)/(nb_pos-1.);
+	length = size;
       }
       
       unsigned int pos2index(double pos)  const {
@@ -139,13 +143,13 @@ namespace xsom {
       
       template<typename ValueOf>
       void fill_line(const ValueOf& value_of_content,
-		     std::vector<ccmpl::Point>& points) {
+		     std::vector<ccmpl::Point>& points) const {
 	points.clear();
 
 	unsigned int rank;
-	unsigned int size  = this->mapping.size;
+	unsigned int length  = this->mapping.length;
 	auto c   = this->content.begin();
-	for(rank = 0; rank < size; ++rank, ++c) {
+	for(rank = 0; rank < length; ++rank, ++c) {
 	  auto pos = this->mapping.rank2pos(rank);
 	  points.push_back({pos, value_of_content(*c)});
 	}
@@ -158,13 +162,13 @@ namespace xsom {
 
       using Table_<double>::Table_;
       
-      void fill_line(std::vector<ccmpl::Point>& points) {
+      void fill_line(std::vector<ccmpl::Point>& points) const {
 	points.clear();
 
 	unsigned int rank;
-	unsigned int size  = this->mapping.size;
+	unsigned int length  = this->mapping.length;
 	auto c   = this->content.begin();
-	for(rank = 0; rank < size; ++rank, ++c) {
+	for(rank = 0; rank < length; ++rank, ++c) {
 	  auto pos = this->mapping.rank2pos(rank);
 	  points.push_back({pos, *c});
 	}
@@ -192,6 +196,7 @@ namespace xsom {
 	coefh = (size.h-1.)/(max.y-min.y);
 	coefx = (max.x-min.x)/(size.w-1.);
 	coefy = (max.y-min.y)/(size.h-1.);
+	length = size.w * size.h;
       }
       
       index_type pos2index(position_type pos)  const {
@@ -232,9 +237,9 @@ namespace xsom {
 
       void learn(std::function<CONTENT (const xsom::Point2D<double>&)> fct_value_at) {
 	unsigned int rank;
-	unsigned int size  = mapping.size;
+	unsigned int length  = mapping.length;
 	auto c   = this->content.begin();
-	for(rank = 0; rank < size; ++rank, ++c) {
+	for(rank = 0; rank < length; ++rank, ++c) {
 	  auto pos = mapping.rank2pos(rank);
 	  if(pos_is_valid(pos))
 	    *c = fct_value_at(pos);
@@ -244,7 +249,7 @@ namespace xsom {
       
       template<typename ColorOf>
       void fill_palette(const ColorOf& ccmplcolor_of_content,
-			std::vector<ccmpl::ColorAt>& points) {
+			std::vector<ccmpl::ColorAt>& points) const {
 	points.clear();
 
 	xsom::Index2D idx;
@@ -262,7 +267,7 @@ namespace xsom {
       template<typename ColorOf>
       void fill_image_rgb(const ColorOf& ccmplcolor_of_content,
 			   std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
-			  unsigned int& width, unsigned int& depth) {
+			  unsigned int& width, unsigned int& depth) const {
 	depth = 3;
 	width = mapping.size.w;
 	x.clear();
@@ -311,7 +316,7 @@ namespace xsom {
       
       template<typename ValueOf>
       void fill_surface(const ValueOf& value_of_content,
-			std::vector<ccmpl::ValueAt>& points) {
+			std::vector<ccmpl::ValueAt>& points) const {
 	points.clear();
 
 	xsom::Index2D idx;
@@ -329,7 +334,7 @@ namespace xsom {
       template<typename ValueOf>
       void fill_image_gray(const ValueOf& value_of_content,
 			   std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
-			   unsigned int& width, unsigned int& depth) {
+			   unsigned int& width, unsigned int& depth) const {
 	depth = 1;
 	width = this->mapping.size.w;
 	x.clear();
@@ -369,7 +374,7 @@ namespace xsom {
 
       using Table_<double>::Table_;
       
-      void fill_surface(std::vector<ccmpl::ValueAt>& points) {
+      void fill_surface(std::vector<ccmpl::ValueAt>& points) const {
 	points.clear();
 
 	xsom::Index2D idx;
@@ -385,7 +390,7 @@ namespace xsom {
       }
 
       void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
-			   unsigned int& width, unsigned int& depth) {
+			   unsigned int& width, unsigned int& depth) const {
 	depth = 1;
 	width = this->mapping.size.w;
 	x.clear();
