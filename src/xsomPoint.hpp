@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <cstdlib>
 
 #include <ccmpl.hpp>
 
@@ -135,7 +136,14 @@ namespace xsom {
     }
   };
   
-  inline Index2D index2d(unsigned int w,unsigned int y) {
-    return Index2D(w,y);
+  inline Index2D index2d(unsigned int w,unsigned int h) {
+    return {w,h};
+  }
+
+  namespace random {
+    inline Index2D index2d(unsigned int w,unsigned int h) {
+      
+      return {(unsigned int)(std::rand()/(1.0+RAND_MAX)*w),(unsigned int)(std::rand()/(1.0+RAND_MAX)*h)};
+    }
   }
 }

@@ -412,18 +412,26 @@ namespace xsom {
 
 	
 	void fill_surface(std::vector<ccmpl::ValueAt>& points) const {
-	  points.clear();
-
-	  xsom::Index2D idx;
-	  unsigned int width  = this->mapping.size.w;
-	  unsigned int height = this->mapping.size.h;
-	  auto c   = convolution.ws.dst;
-	  for(idx.h = 0; idx.h < height; ++idx.h)
-	    for(idx.w = 0; idx.w < width; ++idx.w) {
-	      xsom::Point2D<double> pos = this->mapping.index2pos(idx);
-	      if(pos_is_valid(pos))
-		points.push_back({pos.x,pos.y,*(c++)});
+	  if(nb_triangulation_points != this->delaunay.size()) {
+	    this->delaunay.clear();
+	    this->delaunay.reserve(nb_triangulation_points);
+	    auto out = std::back_inserter(this->delaunay);
+	    unsigned int width  = this->mapping.size.w;
+	    unsigned int height = this->mapping.size.h;
+	    unsigned int nb=0;
+	    while(nb < nb_triangulation_points) {
+	      auto idx = xsom::random::index2d(width, height);
+	      auto pos = this->mapping.index2pos(idx);
+	      if(this->pos_is_valid(pos)) {
+		*(out++) = {this->mapping.index2rank(idx),pos};
+		++nb;
+	      }
 	    }
+	  }
+	  
+	  points.clear();
+	  for(auto& ip : this->delaunay)
+	    points.push_back({ip.second.x,ip.second.y,this->convolution.ws.dst[ip.first]});
 	}
 	
 	void fill_surface_noconv(std::vector<ccmpl::ValueAt>& points) const {

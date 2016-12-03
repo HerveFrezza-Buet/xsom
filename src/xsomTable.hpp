@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <utility>
 #include <algorithm>
 #include <iostream>
 #include <iterator>
@@ -31,10 +32,12 @@ namespace xsom {
 	  length(0) // this has to be set by subclasses.
       {}
 
-      INDEX        pos2index(POSITION      pos)  const {return INDEX();}
-      POSITION     index2pos(INDEX         idx)  const {return POSITION();}
-      unsigned int pos2rank (POSITION      pos)  const {return 0;}
-      POSITION     rank2pos (unsigned int rank)  const {return POSITION();}
+      INDEX        pos2index  (POSITION      pos)  const {return    INDEX();}
+      POSITION     index2pos  (INDEX         idx)  const {return POSITION();}
+      unsigned int pos2rank   (POSITION      pos)  const {return          0;}
+      POSITION     rank2pos   (unsigned int rank)  const {return POSITION();}
+      unsigned int index2rank (INDEX         idx)  const {return          0;}
+      INDEX        rank2index (unsigned int rank)  const {return    INDEX();}
     };
 
     template<typename CONTENT, typename MAPPING>
@@ -117,6 +120,14 @@ namespace xsom {
       
       double rank2pos (unsigned int rank)  const {
 	return rank*coefx+min;
+      }
+      
+      unsigned int rank2index (unsigned int rank)  const {
+	return rank;
+      }
+      
+      unsigned int index2rank (unsigned int idx)  const {
+	return idx;
       }
     };
 
@@ -212,6 +223,14 @@ namespace xsom {
       position_type rank2pos (unsigned int rank)  const {
 	return index2pos({rank % size.w, rank / size.w});
       }
+
+      unsigned int index2rank(index_type idx) const {
+	return idx.w + size.w*idx.h;
+      }
+      
+      index_type index2rank(unsigned int rank) const {
+	return {rank % size.w, rank / size.w};
+      }
     };
     
     Mapping mapping(const xsom::Point2D<double>& pos_min,
@@ -223,6 +242,11 @@ namespace xsom {
 
     template<typename CONTENT>
     class Table_ : public xsom::tab::Table<CONTENT,Mapping> {
+
+    protected:
+
+      mutable std::vector< std::pair<unsigned int,xsom::Point2D<double> > > delaunay;
+      
     public:
       std::function<bool (const xsom::Point2D<double>&)> pos_is_valid;
 
@@ -230,36 +254,47 @@ namespace xsom {
       Table_(const Mapping& m,
 	     const fctPOS_IS_VALID& fct_pos_is_valid) 
 	: xsom::tab::Table<CONTENT,Mapping>(m),
+	delaunay(),
 	pos_is_valid(fct_pos_is_valid) {}
 
       void learn(std::function<CONTENT (const xsom::Point2D<double>&)> fct_value_at) {
 	unsigned int rank;
 	unsigned int length  = this->mapping.length;
 	auto c   = this->content.begin();
-	for(rank = 0; rank < length; ++rank) {
+	for(rank = 0; rank < length; ++rank, ++c) {
 	  auto pos = this->mapping.rank2pos(rank);
 	  if(pos_is_valid(pos))
-	    *(c++) = fct_value_at(pos);
+	    *c = fct_value_at(pos);
 	}
       }
 
       
       template<typename ColorOf>
       void fill_palette(const ColorOf& ccmplcolor_of_content,
+			unsigned int nb_triangulation_points,
 			std::vector<ccmpl::ColorAt>& points) const {
-	points.clear();
-
-	xsom::Index2D idx;
-	unsigned int width  = this->mapping.size.w;
-	unsigned int height = this->mapping.size.h;
-	auto c   = this->content.begin();
-	for(idx.h = 0; idx.h < height; ++idx.h)
-	  for(idx.w = 0; idx.w < width; ++idx.w) {
-	    xsom::Point2D<double> pos = this->mapping.index2pos(idx);
-	    if(this->pos_is_valid(pos))
-	      points.push_back({pos.x,pos.y,ccmplcolor_of_content(*(c++))});
+	
+	if(nb_triangulation_points != this->delaunay.size()) {
+	  this->delaunay.clear();
+	  this->delaunay.reserve(nb_triangulation_points);
+	  auto out = std::back_inserter(this->delaunay);
+	  unsigned int width  = this->mapping.size.w;
+	  unsigned int height = this->mapping.size.h;
+	  unsigned int nb=0;
+	  while(nb < nb_triangulation_points) {
+	    auto idx = xsom::random::index2d(width, height);
+	    auto pos = this->mapping.index2pos(idx);
+	    if(this->pos_is_valid(pos)) {
+	      *(out++) = {this->mapping.index2rank(idx),pos};
+	      ++nb;
+	    }
 	  }
+	}
+	
+	points.clear();
+	for(auto& ip : this->delaunay) points.push_back({ip.second.x,ip.second.y,ccmplcolor_of_content(this->content[ip.first])});
       }
+      
       
       template<typename ColorOf>
       void fill_image_rgb(const ColorOf& ccmplcolor_of_content,
@@ -316,19 +351,28 @@ namespace xsom {
       
       template<typename ValueOf>
       void fill_surface(const ValueOf& value_of_content,
+			unsigned int nb_triangulation_points,
 			std::vector<ccmpl::ValueAt>& points) const {
-	points.clear();
-
-	xsom::Index2D idx;
-	unsigned int width  = this->mapping.size.w;
-	unsigned int height = this->mapping.size.h;
-	auto c   = this->content.begin();
-	for(idx.h = 0; idx.h < height; ++idx.h)
-	  for(idx.w = 0; idx.w < width; ++idx.w) {
-	    xsom::Point2D<double> pos = this->mapping.index2pos(idx);
-	    if(this->pos_is_valid(pos))
-	      points.push_back({pos.x,pos.y,value_of_content(*(c++))});
+	
+	if(nb_triangulation_points != this->delaunay.size()) {
+	  this->delaunay.clear();
+	  this->delaunay.reserve(nb_triangulation_points);
+	  auto out = std::back_inserter(this->delaunay);
+	  unsigned int width  = this->mapping.size.w;
+	  unsigned int height = this->mapping.size.h;
+	  unsigned int nb=0;
+	  while(nb < nb_triangulation_points) {
+	    auto idx = xsom::random::index2d(width, height);
+	    auto pos = this->mapping.index2pos(idx);
+	    if(this->pos_is_valid(pos)) {
+	      *(out++) = {this->mapping.index2rank(idx),pos};
+	      ++nb;
+	    }
 	  }
+	}
+	
+	points.clear();
+	for(auto& ip : this->delaunay) points.push_back({ip.second.x,ip.second.y,value_of_content(this->content[ip.first])});
       }
 
       template<typename ValueOf>
@@ -375,18 +419,26 @@ namespace xsom {
       using Table_<double>::Table_;
       
       void fill_surface(std::vector<ccmpl::ValueAt>& points) const {
-	points.clear();
-
-	xsom::Index2D idx;
-	unsigned int width  = this->mapping.size.w;
-	unsigned int height = this->mapping.size.h;
-	auto c   = this->content.begin();
-	for(idx.h = 0; idx.h < height; ++idx.h)
-	  for(idx.w = 0; idx.w < width; ++idx.w) {
-	    xsom::Point2D<double> pos = this->mapping.index2pos(idx);
-	    if(this->pos_is_valid(pos))
-	      points.push_back({pos.x,pos.y,*(c++)});
+	
+	if(nb_triangulation_points != this->delaunay.size()) {
+	  this->delaunay.clear();
+	  this->delaunay.reserve(nb_triangulation_points);
+	  auto out = std::back_inserter(this->delaunay);
+	  unsigned int width  = this->mapping.size.w;
+	  unsigned int height = this->mapping.size.h;
+	  unsigned int nb=0;
+	  while(nb < nb_triangulation_points) {
+	    auto idx = xsom::random::index2d(width, height);
+	    auto pos = this->mapping.index2pos(idx);
+	    if(this->pos_is_valid(pos)) {
+	      *(out++) = {this->mapping.index2rank(idx),pos};
+	      ++nb;
+	    }
 	  }
+	}
+	
+	points.clear();
+	for(auto& ip : this->delaunay) points.push_back({ip.second.x,ip.second.y,this->content[ip.first]});
       }
 
       void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
