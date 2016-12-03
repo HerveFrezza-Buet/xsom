@@ -149,6 +149,14 @@ namespace xsom {
     public:
 
       using Table_<CONTENT>::Table_;
+
+      void learn(std::function<CONTENT (double)> fct_value_at) {
+	this->xsom::tab::Table<CONTENT,Mapping>::learn(fct_value_at);
+      }
+      
+      double bmu() const {
+	return this->xsom::tab::Table<CONTENT,Mapping>::bmu();
+      }
       
       template<typename ValueOf>
       void fill_line(const ValueOf& value_of_content,
@@ -170,6 +178,14 @@ namespace xsom {
     public:
 
       using Table_<double>::Table_;
+      
+      void learn(std::function<double (double)> fct_value_at) {
+	this->xsom::tab::Table<double,Mapping>::learn(fct_value_at);
+      }
+      
+      double bmu() const {
+	return this->xsom::tab::Table<double,Mapping>::bmu();
+      }
       
       void fill_line(std::vector<ccmpl::Point>& points) const {
 	points.clear();
@@ -348,6 +364,33 @@ namespace xsom {
     public:
 
       using Table_<CONTENT>::Table_;
+
+      void learn(std::function<CONTENT (xsom::Point2D<double>)> fct_value_at) {
+	this->xsom::tab::Table<CONTENT,Mapping>::learn(fct_value_at);
+      }
+      
+      xsom::Point2D<double> bmu() const {
+	return this->xsom::tab::Table<CONTENT,Mapping>::bmu();
+      }
+      
+      template<typename ColorOf>
+      void fill_palette(const ColorOf& ccmplcolor_of_content,
+			unsigned int nb_triangulation_points,
+			std::vector<ccmpl::ColorAt>& points) const {
+	this->Table_<CONTENT>::fill_palette(ccmplcolor_of_content,
+					    nb_triangulation_points,
+					    points);
+      }
+      
+      template<typename ColorOf>
+      void fill_image_rgb(const ColorOf& ccmplcolor_of_content,
+			  std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+			  unsigned int& width, unsigned int& depth) const {
+	this->Table_<CONTENT>::fill_image_rgb(ccmplcolor_of_content,
+					      x, y, z,
+					      width, depth);
+      }
+
       
       template<typename ValueOf>
       void fill_surface(const ValueOf& value_of_content,
@@ -418,7 +461,35 @@ namespace xsom {
 
       using Table_<double>::Table_;
       
-      void fill_surface(std::vector<ccmpl::ValueAt>& points) const {
+
+      void learn(std::function<double (xsom::Point2D<double>)> fct_value_at) {
+	this->xsom::tab::Table<double,Mapping>::learn(fct_value_at);
+      }
+      
+      xsom::Point2D<double> bmu() const {
+	return this->xsom::tab::Table<double,Mapping>::bmu();
+      }
+      
+      template<typename ColorOf>
+      void fill_palette(const ColorOf& ccmplcolor_of_content,
+			unsigned int nb_triangulation_points,
+			std::vector<ccmpl::ColorAt>& points) const {
+	this->Table_<double>::fill_palette(ccmplcolor_of_content,
+					    nb_triangulation_points,
+					    points);
+      }
+      
+      template<typename ColorOf>
+      void fill_image_rgb(const ColorOf& ccmplcolor_of_content,
+			  std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
+			  unsigned int& width, unsigned int& depth) const {
+	this->Table_<double>::fill_image_rgb(ccmplcolor_of_content,
+					      x, y, z,
+					      width, depth);
+      }
+      
+      void fill_surface(unsigned int nb_triangulation_points,
+			std::vector<ccmpl::ValueAt>& points) const {
 	
 	if(nb_triangulation_points != this->delaunay.size()) {
 	  this->delaunay.clear();

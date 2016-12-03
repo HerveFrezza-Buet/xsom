@@ -324,6 +324,20 @@ namespace xsom {
 	  : xsom::tab1d::Table<double>(m),
 	    convolution(m.size, 1, sigma, this->content, kernel_type) {}
 
+	void learn(std::function<double (double)> fct_value_at) {
+	  this->xsom::tab1d::Table<double>::learn(fct_value_at);
+	}
+	
+	double bmu() const {
+	  convolution.convolve();
+	  auto begin = convolution.ws.dst;
+	  auto end   = begin + this->mapping.length;
+	  return this->mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
+	}
+	
+	double bmu_noconv() const {
+	  return this->xsom::tab1d::Table<double>::bmu();
+	}
 
 	void fill_line(std::vector<ccmpl::Point>& points) const {
 	  points.clear();
@@ -347,17 +361,6 @@ namespace xsom {
 	
 	double get_noconv(double pos) const {
 	  return this->xsom::tab1d::Table<double>::operator()(pos);
-	}
-	
-	double bmu() const {
-	  convolution.convolve();
-	  auto begin = convolution.ws.dst;
-	  auto end   = begin + this->mapping.length;
-	  return this->mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
-	}
-	
-	double bmu_noconv() const {
-	  return this->xsom::tab1d::Table<double>::bmu();
 	}
       };
 
@@ -399,6 +402,10 @@ namespace xsom {
 	  return this->xsom::tab2d::Table<double>::operator()(pos);
 	}
 	
+	void learn(std::function<double (xsom::Point2D<double>)> fct_value_at) {
+	  this->xsom::tab2d::Table<double>::learn(fct_value_at);
+	}
+	
 	xsom::Point2D<double> bmu() const {
 	  convolution.convolve();
 	  auto begin = convolution.ws.dst;
@@ -411,7 +418,8 @@ namespace xsom {
 	}
 
 	
-	void fill_surface(std::vector<ccmpl::ValueAt>& points) const {
+	void fill_surface(unsigned int nb_triangulation_points,
+			  std::vector<ccmpl::ValueAt>& points) const {
 	  if(nb_triangulation_points != this->delaunay.size()) {
 	    this->delaunay.clear();
 	    this->delaunay.reserve(nb_triangulation_points);
@@ -434,8 +442,9 @@ namespace xsom {
 	    points.push_back({ip.second.x,ip.second.y,this->convolution.ws.dst[ip.first]});
 	}
 	
-	void fill_surface_noconv(std::vector<ccmpl::ValueAt>& points) const {
-	  this->xsom::tab2d::Table<double>::fill_surface(points);
+	void fill_surface_noconv(unsigned int nb_triangulation_points,
+				 std::vector<ccmpl::ValueAt>& points) const {
+	  this->xsom::tab2d::Table<double>::fill_surface(nb_triangulation_points,points);
 	}
 
 	void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
