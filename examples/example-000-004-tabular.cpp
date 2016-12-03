@@ -24,22 +24,22 @@ struct Point3D {
 
 #define torus_r  .5
 #define torus_R  (1-torus_r)
-Point3D torus(double u,double v) { // u,v in [0,2pi]
-  double r = torus_R + torus_r*std::cos(v);
-  return {r*std::cos(u), r*std::sin(u), torus_r*std::sin(v)};
+Point3D torus(const xsom::Point2D<double>& uv) { // u,v in [0,2pi]
+  double r = torus_R + torus_r*std::cos(uv.y);
+  return {r*std::cos(uv.x), r*std::sin(uv.x), torus_r*std::sin(uv.y)};
 }
 
 ccmpl::RGB color_of_3d(const Point3D& p) {return {(p.x+1)/2, (p.y+1)/2, (p.z+torus_r)/(2*torus_r)};}
 double     value_of_3d(const Point3D& p) {return  (p.x+1)/2                                       ;}
 
-#define NB_U_BIG 500
-#define NB_V_BIG 300
+#define NB_U 500
+#define NB_V 300
 
 #define NB_TRIANGULATION_POINTS 1000
 
 // let us also define a function, f : (u,v) -> value
 
-double v(const xsom::Point2D<double>& uv) {
+double f(const xsom::Point2D<double>& uv) {
   if(uv*uv < .25) {
     if(uv.x*uv.y > 0)
       return 1;
@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
   // tabular version for the torus function. We define the function
   // for some (u,v) pairs only (the lambda function returns true for them).
   
-  auto torus_mapping = xsom::tab2d::mapping({0, 0}, {2*PI, 2*PI}, {NB_U_BIG, NB_V_BIG});
+  auto torus_mapping = xsom::tab2d::mapping({0, 0}, {2*PI, 2*PI}, {NB_U, NB_V});
   auto tabular_torus = xsom::tab2d::table<Point3D>(torus_mapping,
 						   [](const xsom::Point2D<double>& uv) {auto d = uv - xsom::Point2D<double>(PI,PI); return d*d <= PI*PI;});
   
@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
   // to be actually initialized, let us set first (and once) the value
   // of all the points in the grid.
   tabular_torus.clear({0,0,0}); // initialization to the (0,0,0) Point3D value.
-  tabular_torus.learn([](const xsom::Point2D<double>& p) {return torus(p.x, p.y);}); 
+  tabular_torus.learn(torus); 
 
   // This displays a color image from the table. We have to provide
   // fill_image_rgb with a function that converts the content of the
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
 
   // display()         = {0, 2*PI, 0, 2*PI};
   // display()         = ccmpl::show_tics(true, true);
-  // display().title   = "torus (clipped)";
+  // display().title   = "torus (clipped, fill_image_rgb)";
   // display().xtitle  = "u";
   // display().ytitle  = "v";
   // display()         = "equal";
@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
   // display++;
   // display()         = {0, 2*PI, 0, 2*PI};
   // display()         = ccmpl::show_tics(true, true);
-  // display().title   = "torus (clipped)";
+  // display().title   = "torus (clipped, fill_image_gray)";
   // display().xtitle  = "u";
   // display().ytitle  = "v";
   // display()         = "equal";
@@ -125,20 +125,50 @@ int main(int argc, char* argv[]) {
   // display++;
   // display()         = {0, 2*PI, 0, 2*PI};
   // display()         = ccmpl::show_tics(true, true);
-  // display().title   = "torus (clipped)";
+  // display().title   = "torus (clipped, fill_palette)";
   // display().xtitle  = "u";
   // display().ytitle  = "v";
   // display()         = "equal";
   // display()        +=  ccmpl::palette("", [&tabular_torus](std::vector<ccmpl::ColorAt>& points) {tabular_torus.fill_palette(color_of_3d, NB_TRIANGULATION_POINTS, points);});    flags += '#';
 
   // display++;
-  display()         = {0, 2*PI, 0, 2*PI};
-  display()         = ccmpl::show_tics(true, true);
-  display().title   = "torus (clipped)";
+  // display()         = {0, 2*PI, 0, 2*PI};
+  // display()         = ccmpl::show_tics(true, true);
+  // display().title   = "torus (clipped, fill_surface)";
+  // display().xtitle  = "u";
+  // display().ytitle  = "v";
+  // display()         = "equal";
+  // display()        +=  ccmpl::surface("cmap='jet'", 0, 1, [&tabular_torus](std::vector<ccmpl::ValueAt>& points) {tabular_torus.fill_surface(value_of_3d, NB_TRIANGULATION_POINTS, points);});    flags += '#';
+
+  // Let us now consider the more specific but more usual usual case
+  // of tabular functions returning a float. Converter to floats, such
+  // as value_of_3d, are now useless, which allows us to use method
+  // pointers directly instead of lambda-functions.
+
+  
+  auto v_mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {NB_U, NB_V});
+  auto tabular_v = xsom::tab2d::table<double>(v_mapping,
+					      [](const xsom::Point2D<double>& uv) {return true;}); // we define the function without restrictions about inputs.
+  tabular_v.learn(f);
+
+  // display++;
+  // display()         = {-1, 1, -1, 1};
+  // display()         = ccmpl::show_tics(false, false);
+  // display().title   = "f (fill_image_gray)";
+  // display().xtitle  = "u";
+  // display().ytitle  = "v";
+  // display()         = "equal";
+  // display()        +=  ccmpl::image("cmap='binary', interpolation='bilinear', clim=(0,1)",
+  // 				    std::bind(&xsom::tab2d::Table<double>::fill_image_gray, std::ref(tabular_v), _1, _2, _3, _4, _5));       flags += '#';
+
+  // display++;
+  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::show_tics(false, false);
+  display().title   = "f (fill_surface)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
-  display()        +=  ccmpl::surface("cmap='jet'", 0, 1, [&tabular_torus](std::vector<ccmpl::ValueAt>& points) {tabular_torus.fill_surface(value_of_3d, NB_TRIANGULATION_POINTS, points);});    flags += '#';
+  display()        +=  ccmpl::surface("cmap='binary'", 0, 1, std::bind(&xsom::tab2d::Table<double>::fill_surface, std::ref(tabular_v), NB_TRIANGULATION_POINTS, _1));       flags += '#';
   
   if(generate_mode) {
     display.make_python(VIEW_FILE,false);
