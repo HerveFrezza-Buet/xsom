@@ -21,6 +21,11 @@ using namespace std::placeholders;
 struct Point3D {
   double x,y,z;
 };
+// This comparison allows for the further use of bmu methods for a
+// table containing Point3D values.
+bool operator<(const Point3D& a, const Point3D& b) {
+  return a.x < b.x; // Comparison based on x only...
+}
 
 #define torus_r  .5
 #define torus_R  (1-torus_r)
@@ -32,8 +37,8 @@ Point3D torus(const xsom::Point2D<double>& uv) { // u,v in [0,2pi]
 ccmpl::RGB color_of_3d(const Point3D& p) {return {(p.x+1)/2, (p.y+1)/2, (p.z+torus_r)/(2*torus_r)};}
 double     value_of_3d(const Point3D& p) {return  (p.x+1)/2                                       ;}
 
-#define NB_U 500
-#define NB_V 300
+#define NB_U 200
+#define NB_V  50
 
 #define NB_TRIANGULATION_POINTS 1000
 
@@ -56,12 +61,14 @@ int main(int argc, char* argv[]) {
 
   bool generate_mode = std::string(argv[1])=="generate";
 
-  auto display      = ccmpl::layout(10,5, {"#"});
+  auto display      = ccmpl::layout(20,10, {"####", "###."});
   std::string flags = "";
 
   // Let us start with the more general case. We will provide a
   // tabular version for the torus function. We define the function
-  // for some (u,v) pairs only (the lambda function returns true for them).
+  // for some (u,v) pairs only (the lambda function returns true for
+  // them). Just omit this argument if you want to allow for values at
+  // each position.
   
   auto torus_mapping = xsom::tab2d::mapping({0, 0}, {2*PI, 2*PI}, {NB_U, NB_V});
   auto tabular_torus = xsom::tab2d::table<Point3D>(torus_mapping,
@@ -79,33 +86,38 @@ int main(int argc, char* argv[]) {
   // fill_image_rgb with a function that converts the content of the
   // map (Point3D) into a color.
 
-  // display()         = {0, 2*PI, 0, 2*PI};
-  // display()         = ccmpl::show_tics(true, true);
-  // display().title   = "torus (clipped, fill_image_rgb)";
-  // display().xtitle  = "u";
-  // display().ytitle  = "v";
-  // display()         = "equal";
-  // display()        += ccmpl::image("interpolation='bilinear'",
-  // 				   [&tabular_torus](std::vector<double>& x,
-  // 						    std::vector<double>& y,
-  // 						    std::vector<double>& z,
-  // 						    unsigned int& width,
-  // 						    unsigned int& depth) {tabular_torus.fill_image_rgb(color_of_3d, x, y, z, width, depth);});        flags += '#';
+  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::show_tics(true, true);
+  display().title   = "torus (clipped, fill_image_rgb)";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        += ccmpl::image("interpolation='bilinear'",
+  				   [&tabular_torus](std::vector<double>& x,
+  						    std::vector<double>& y,
+  						    std::vector<double>& z,
+  						    unsigned int& width,
+  						    unsigned int& depth) {tabular_torus.fill_image_rgb(color_of_3d, x, y, z, width, depth);});
+  flags += '#';
   
   // The following does the same with a 1-depth image.
-  // display++;
-  // display()         = {0, 2*PI, 0, 2*PI};
-  // display()         = ccmpl::show_tics(true, true);
-  // display().title   = "torus (clipped, fill_image_gray)";
-  // display().xtitle  = "u";
-  // display().ytitle  = "v";
-  // display()         = "equal";
-  // display()        += ccmpl::image("cmap='jet', interpolation='bilinear', clim=(0,1)",
-  // 				   [&tabular_torus](std::vector<double>& x,
-  // 						    std::vector<double>& y,
-  // 						    std::vector<double>& z,
-  // 						    unsigned int& width,
-  // 						    unsigned int& depth) {tabular_torus.fill_image_gray(value_of_3d, x, y, z, width, depth);});        flags += '#';
+  display++;
+  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::show_tics(true, true);
+  display().title   = "torus (clipped, fill_image_gray)";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        += ccmpl::image("cmap='jet', interpolation='bilinear', clim=(0,1)",
+  				   [&tabular_torus](std::vector<double>& x,
+  						    std::vector<double>& y,
+  						    std::vector<double>& z,
+  						    unsigned int& width,
+  						    unsigned int& depth) {tabular_torus.fill_image_gray(value_of_3d, x, y, z, width, depth);});
+  flags += '#';
+  // If the content supports the < operator, the highest position in the map (called bmu) can be obtained.
+  display()        += ccmpl::dot("c='w',lw=1,s=50,zorder=1", [&tabular_torus](ccmpl::Point& dot) {dot = tabular_torus.bmu();});
+  flags += '#';
 
   // The two following does the same as rgb and 1-depth previous
   // images, but surface and palette are rather used. This can be
@@ -113,23 +125,25 @@ int main(int argc, char* argv[]) {
   // matplotlib. Nevertheless, the clipping is rendered in a better
   // way.
 
-  // display++;
-  // display()         = {0, 2*PI, 0, 2*PI};
-  // display()         = ccmpl::show_tics(true, true);
-  // display().title   = "torus (clipped, fill_palette)";
-  // display().xtitle  = "u";
-  // display().ytitle  = "v";
-  // display()         = "equal";
-  // display()        += ccmpl::palette("", [&tabular_torus](std::vector<ccmpl::ColorAt>& points) {tabular_torus.fill_palette(color_of_3d, NB_TRIANGULATION_POINTS, points);});    flags += '#';
+  display++;
+  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::show_tics(true, true);
+  display().title   = "torus (clipped, fill_palette)";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        += ccmpl::palette("", [&tabular_torus](std::vector<ccmpl::ColorAt>& points) {tabular_torus.fill_palette(color_of_3d, NB_TRIANGULATION_POINTS, points);});
+  flags += '#';
 
-  // display++;
-  // display()         = {0, 2*PI, 0, 2*PI};
-  // display()         = ccmpl::show_tics(true, true);
-  // display().title   = "torus (clipped, fill_surface)";
-  // display().xtitle  = "u";
-  // display().ytitle  = "v";
-  // display()         = "equal";
-  // display()        += ccmpl::surface("cmap='jet'", 0, 1, [&tabular_torus](std::vector<ccmpl::ValueAt>& points) {tabular_torus.fill_surface(value_of_3d, NB_TRIANGULATION_POINTS, points);});    flags += '#';
+  display++;
+  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::show_tics(true, true);
+  display().title   = "torus (clipped, fill_surface)";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        += ccmpl::surface("cmap='jet'", 0, 1, [&tabular_torus](std::vector<ccmpl::ValueAt>& points) {tabular_torus.fill_surface(value_of_3d, NB_TRIANGULATION_POINTS, points);});
+  flags += '#';
 
   // Let us now consider the more specific but more usual usual case
   // of tabular functions returning a float. Converter to floats, such
@@ -138,11 +152,10 @@ int main(int argc, char* argv[]) {
 
   
   auto gabor_mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {NB_U, NB_V});
-  auto tabular_gabor = xsom::tab2d::table<double>(gabor_mapping,
-					      [](const xsom::Point2D<double>& uv) {return true;}); // we define the function without restrictions about inputs.
+  auto tabular_gabor = xsom::tab2d::table<double>(gabor_mapping);
   tabular_gabor.learn(gabor);
 
-  // display++;
+  display++;
   display()         = {-1, 1, -1, 1};
   display()         = ccmpl::show_tics(false, false);
   display().title   = "gabor (fill_image_gray)";
@@ -150,18 +163,40 @@ int main(int argc, char* argv[]) {
   display().ytitle  = "v";
   display()         = "equal";
   display()        += ccmpl::image("cmap='jet', interpolation='bilinear', clim=(-1,1), zorder=0",
-  				    std::bind(&xsom::tab2d::Table<double>::fill_image_gray, std::ref(tabular_gabor), _1, _2, _3, _4, _5));       flags += '#';
-  // If the content supports the < operator, the highest position in the map (called bmu) can be obtained.
-  display()        += ccmpl::dot("c='w',lw=1,s=50,zorder=1", [&tabular_gabor](ccmpl::Point& dot) {dot = tabular_gabor.bmu();});  flags += "#";
+  				    std::bind(&xsom::tab2d::Table<double>::fill_image_gray, std::ref(tabular_gabor), _1, _2, _3, _4, _5));
+  flags += "#";
+  display()        += ccmpl::dot("c='w',lw=1,s=50,zorder=1", [&tabular_gabor](ccmpl::Point& dot) {dot = tabular_gabor.bmu();});
+  flags += "#";
 
-  // display++;
-  // display()         = {-1, 1, -1, 1};
-  // display()         = ccmpl::show_tics(false, false);
-  // display().title   = "gabor (fill_surface)";
-  // display().xtitle  = "u";
-  // display().ytitle  = "v";
-  // display()         = "equal";
-  // display()        +=  ccmpl::surface("cmap='jet'", -1, 1, std::bind(&xsom::tab2d::Table<double>::fill_surface, std::ref(tabular_gabor), NB_TRIANGULATION_POINTS, _1));       flags += '#';
+  display++;
+  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::show_tics(false, false);
+  display().title   = "gabor (fill_surface)";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        +=  ccmpl::surface("cmap='jet'", -1, 1, std::bind(&xsom::tab2d::Table<double>::fill_surface, std::ref(tabular_gabor), NB_TRIANGULATION_POINTS, _1));
+  flags += '#';
+
+
+  // Last, let us mention that tabular functions are indeed functions
+  // f : pos -> content. They can thus be used as an argument of
+  // learn.
+  
+  auto gabor_lowres_mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {10, 10});
+  auto tabular_gabor_lowres = xsom::tab2d::table<double>(gabor_lowres_mapping);
+  tabular_gabor_lowres.learn(tabular_gabor);
+
+  display++;
+  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::show_tics(false, false);
+  display().title   = "gabor (lower resolution, fill_image_gray)";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        += ccmpl::image("cmap='jet', interpolation='bilinear', clim=(-1,1), zorder=0",
+  				    std::bind(&xsom::tab2d::Table<double>::fill_image_gray, std::ref(tabular_gabor_lowres), _1, _2, _3, _4, _5));
+  flags += '#';
   
   if(generate_mode) {
     display.make_python(VIEW_FILE,false);

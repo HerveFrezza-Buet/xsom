@@ -46,10 +46,21 @@ namespace xsom {
       
       const MAPPING& mapping;
       std::vector<CONTENT> content;
+      std::function<bool (typename MAPPING::position_type pos)> pos_is_valid;
+      bool use_validation_mask;
 
       Table(const MAPPING& m) 
 	: mapping(m), 
-	  content(m.length)  {}
+	  content(m.length),
+	  use_validation_mask(false) {}
+      
+      template<typename fctPOS_IS_VALID>
+      Table(const MAPPING& m,
+	    const fctPOS_IS_VALID& fct_pos_is_valid) 
+	: mapping(m), 
+	  content(m.length),
+	  pos_is_valid(fct_pos_is_valid),
+	  use_validation_mask(true) {}
 
       CONTENT operator()(typename MAPPING::position_type pos) const {
 	return content[mapping.pos2rank(pos)];
@@ -63,14 +74,50 @@ namespace xsom {
 	unsigned int rank;
 	unsigned int length  = mapping.length;
 	auto c   = content.begin();
-	for(rank = 0; rank < length; ++rank) {
-	  auto pos = mapping.rank2pos(rank);
-	  *(c++) = fct_value_at(pos);
-	}
+
+	if(use_validation_mask)
+	  for(rank = 0; rank < length; ++rank, ++c) {
+	    auto pos = this->mapping.rank2pos(rank);
+	    if(pos_is_valid(pos))
+	      *c = fct_value_at(pos);
+	  }
+	else
+	  for(rank = 0; rank < length; ++rank) {
+	    auto pos = mapping.rank2pos(rank);
+	    *(c++) = fct_value_at(pos);
+	  }
       }
       
       typename MAPPING::position_type bmu() const {
-	return mapping.rank2pos((unsigned int)(std::distance(content.begin(), std::max_element(content.begin(), content.end()))));
+	if(use_validation_mask) {
+	  unsigned int length  = mapping.length;
+	  auto c               = content.begin();
+	  typename MAPPING::position_type best_pos   =  typename MAPPING::position_type();
+	  CONTENT                         best_value = CONTENT();
+	  unsigned int rank    = 0;
+	  
+	  // Let us find the first valid data.
+	  for(rank = 0; rank < length; ++rank, ++c) {
+	    auto pos = mapping.rank2pos(rank);
+	    if(pos_is_valid(pos)) {
+	      best_pos = pos;
+	      best_value = *c;
+	      break;
+	    }
+	  }
+
+	  for(++rank,++c; rank < length; ++rank, ++c) {
+	    auto pos = mapping.rank2pos(rank);
+	    if(pos_is_valid(pos) && (best_value < *c)) {
+	      best_pos = pos;
+	      best_value = *c;
+	    }
+	  }
+
+	  return best_pos;
+	}
+	else
+	  return mapping.rank2pos((unsigned int)(std::distance(content.begin(), std::max_element(content.begin(), content.end()))));
       }
 	  
       void write(std::ostream& os) const {
@@ -139,16 +186,27 @@ namespace xsom {
     template<typename CONTENT>
     class Table_ : public xsom::tab::Table<CONTENT,Mapping> {
     public:
-
-      Table_(const Mapping& m) : xsom::tab::Table<CONTENT,Mapping>(m) {}
-
+      
+      Table_(const Mapping& m)
+	: xsom::tab::Table<CONTENT,Mapping>(m) {}
+      
+      template<typename fctPOS_IS_VALID>
+      Table_(const Mapping& m,
+	     const fctPOS_IS_VALID& fct_pos_is_valid)
+	: xsom::tab::Table<CONTENT,Mapping>(m, fct_pos_is_valid) {}
     };
 
     template<typename CONTENT>
     class Table : public Table_<CONTENT> {
     public:
 
-      using Table_<CONTENT>::Table_;
+      Table(const Mapping& m)
+	: Table_<CONTENT>(m) {}
+      
+      template<typename fctPOS_IS_VALID>
+      Table(const Mapping& m,
+	    const fctPOS_IS_VALID& fct_pos_is_valid)
+	: Table_<CONTENT>(m, fct_pos_is_valid) {}
 
       void learn(std::function<CONTENT (double)> fct_value_at) {
 	this->xsom::tab::Table<CONTENT,Mapping>::learn(fct_value_at);
@@ -177,7 +235,13 @@ namespace xsom {
     class Table<double> : public Table_<double> {
     public:
 
-      using Table_<double>::Table_;
+      Table(const Mapping& m)
+	: Table_<double>(m) {}
+      
+      template<typename fctPOS_IS_VALID>
+      Table(const Mapping& m,
+	    const fctPOS_IS_VALID& fct_pos_is_valid)
+	: Table_<double>(m, fct_pos_is_valid) {}
       
       void learn(std::function<double (double)> fct_value_at) {
 	this->xsom::tab::Table<double,Mapping>::learn(fct_value_at);
@@ -204,6 +268,11 @@ namespace xsom {
     template<typename CONTENT>
     Table<CONTENT> table(const Mapping& m) {
       return Table<CONTENT>(m);
+    }
+    
+    template<typename CONTENT, typename fctPOS_IS_VALID>
+    Table<CONTENT> table(const Mapping& m, const fctPOS_IS_VALID& fct_pos_is_valid) {
+      return Table<CONTENT>(m,fct_pos_is_valid);
     }
   }
 
@@ -264,26 +333,16 @@ namespace xsom {
       mutable std::vector< std::pair<unsigned int,xsom::Point2D<double> > > delaunay;
       
     public:
-      std::function<bool (const xsom::Point2D<double>&)> pos_is_valid;
 
+      Table_(const Mapping& m) 
+	: xsom::tab::Table<CONTENT,Mapping>(m),
+	delaunay() {}
+      
       template<typename fctPOS_IS_VALID>
       Table_(const Mapping& m,
 	     const fctPOS_IS_VALID& fct_pos_is_valid) 
-	: xsom::tab::Table<CONTENT,Mapping>(m),
-	delaunay(),
-	pos_is_valid(fct_pos_is_valid) {}
-
-      void learn(std::function<CONTENT (const xsom::Point2D<double>&)> fct_value_at) {
-	unsigned int rank;
-	unsigned int length  = this->mapping.length;
-	auto c   = this->content.begin();
-	for(rank = 0; rank < length; ++rank, ++c) {
-	  auto pos = this->mapping.rank2pos(rank);
-	  if(pos_is_valid(pos))
-	    *c = fct_value_at(pos);
-	}
-      }
-
+	: xsom::tab::Table<CONTENT,Mapping>(m,fct_pos_is_valid),
+	delaunay() {}
       
       template<typename ColorOf>
       void fill_palette(const ColorOf& ccmplcolor_of_content,
@@ -297,14 +356,22 @@ namespace xsom {
 	  unsigned int width  = this->mapping.size.w;
 	  unsigned int height = this->mapping.size.h;
 	  unsigned int nb=0;
-	  while(nb < nb_triangulation_points) {
-	    auto idx = xsom::random::index2d(width, height);
-	    auto pos = this->mapping.index2pos(idx);
-	    if(this->pos_is_valid(pos)) {
+	  if(this->use_validation_mask)
+	    while(nb < nb_triangulation_points) {
+	      auto idx = xsom::random::index2d(width, height);
+	      auto pos = this->mapping.index2pos(idx);
+	      if(this->pos_is_valid(pos)) {
+		*(out++) = {this->mapping.index2rank(idx),pos};
+		++nb;
+	      }
+	    }
+	  else
+	    while(nb < nb_triangulation_points) {
+	      auto idx = xsom::random::index2d(width, height);
+	      auto pos = this->mapping.index2pos(idx);
 	      *(out++) = {this->mapping.index2rank(idx),pos};
 	      ++nb;
 	    }
-	  }
 	}
 	
 	points.clear();
@@ -363,7 +430,13 @@ namespace xsom {
     class Table : public Table_<CONTENT> {
     public:
 
-      using Table_<CONTENT>::Table_;
+      Table(const Mapping& m)
+	: Table_<CONTENT>(m) {}
+      
+      template<typename fctPOS_IS_VALID>
+      Table(const Mapping& m,
+	    const fctPOS_IS_VALID& fct_pos_is_valid)
+	: Table_<CONTENT>(m, fct_pos_is_valid) {}
 
       void learn(std::function<CONTENT (xsom::Point2D<double>)> fct_value_at) {
 	this->xsom::tab::Table<CONTENT,Mapping>::learn(fct_value_at);
@@ -404,14 +477,22 @@ namespace xsom {
 	  unsigned int width  = this->mapping.size.w;
 	  unsigned int height = this->mapping.size.h;
 	  unsigned int nb=0;
-	  while(nb < nb_triangulation_points) {
-	    auto idx = xsom::random::index2d(width, height);
-	    auto pos = this->mapping.index2pos(idx);
-	    if(this->pos_is_valid(pos)) {
+	  if(this->use_validation_mask)
+	    while(nb < nb_triangulation_points) {
+	      auto idx = xsom::random::index2d(width, height);
+	      auto pos = this->mapping.index2pos(idx);
+	      if(this->pos_is_valid(pos)) {
+		*(out++) = {this->mapping.index2rank(idx),pos};
+		++nb;
+	      }
+	    }
+	  else
+	    while(nb < nb_triangulation_points) {
+	      auto idx = xsom::random::index2d(width, height);
+	      auto pos = this->mapping.index2pos(idx);
 	      *(out++) = {this->mapping.index2rank(idx),pos};
 	      ++nb;
 	    }
-	  }
 	}
 	
 	points.clear();
@@ -459,8 +540,13 @@ namespace xsom {
     class Table<double> : public Table_<double> {
     public:
 
-      using Table_<double>::Table_;
+      Table(const Mapping& m)
+	: Table_<double>(m) {}
       
+      template<typename fctPOS_IS_VALID>
+      Table(const Mapping& m,
+	    const fctPOS_IS_VALID& fct_pos_is_valid)
+	: Table_<double>(m, fct_pos_is_valid) {}
 
       void learn(std::function<double (xsom::Point2D<double>)> fct_value_at) {
 	this->xsom::tab::Table<double,Mapping>::learn(fct_value_at);
@@ -498,14 +584,22 @@ namespace xsom {
 	  unsigned int width  = this->mapping.size.w;
 	  unsigned int height = this->mapping.size.h;
 	  unsigned int nb=0;
-	  while(nb < nb_triangulation_points) {
-	    auto idx = xsom::random::index2d(width, height);
-	    auto pos = this->mapping.index2pos(idx);
-	    if(this->pos_is_valid(pos)) {
+	  if(this->use_validation_mask)
+	    while(nb < nb_triangulation_points) {
+	      auto idx = xsom::random::index2d(width, height);
+	      auto pos = this->mapping.index2pos(idx);
+	      if(this->pos_is_valid(pos)) {
+		*(out++) = {this->mapping.index2rank(idx),pos};
+		++nb;
+	      }
+	    }
+	  else
+	    while(nb < nb_triangulation_points) {
+	      auto idx = xsom::random::index2d(width, height);
+	      auto pos = this->mapping.index2pos(idx);
 	      *(out++) = {this->mapping.index2rank(idx),pos};
 	      ++nb;
 	    }
-	  }
 	}
 	
 	points.clear();
@@ -546,10 +640,14 @@ namespace xsom {
       }
     };
 
-    template<typename CONTENT,
-	     typename fctPOS_IS_VALID>
-    Table<CONTENT> table(const Mapping& m,
-			 const fctPOS_IS_VALID& fct_pos_is_valid) {
+
+    template<typename CONTENT>
+    Table<CONTENT> table(const Mapping& m) {
+      return Table<CONTENT>(m);
+    }
+    
+    template<typename CONTENT, typename fctPOS_IS_VALID>
+    Table<CONTENT> table(const Mapping& m, const fctPOS_IS_VALID& fct_pos_is_valid) {
       return Table<CONTENT>(m,fct_pos_is_valid);
     }
 
