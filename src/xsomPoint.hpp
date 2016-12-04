@@ -74,6 +74,15 @@ namespace xsom {
       return (*this)/std::sqrt((*this)*(*this));
     }
     
+    bool operator==(const Point2D<VALUE>& p) const {
+      return x==p.x && y==p.y;
+    }
+    
+    bool operator!=(const Point2D<VALUE>& p) const {
+      return x!=p.x || y!=p.y;
+    }
+    
+    
   };
 
   template<typename VALUE>

@@ -1,10 +1,10 @@
-#include <xsom.hpp>
 #include <utility>
 #include <vector>
 #include <functional>
 #include <algorithm>
 #include <cmath>
 
+#include <xsom.hpp>
 #include <ccmpl.hpp>
 
 using namespace std::placeholders;
@@ -42,7 +42,7 @@ double     value_of_3d(const Point3D& p) {return  (p.x+1)/2                     
 
 #define NB_TRIANGULATION_POINTS 1000
 
-// let us also define a function, f : (u,v) -> value
+// let us also define a function, gabor : (u,v) -> value
 
 double gabor(const xsom::Point2D<double>& uv) {
   return std::sin(20*uv.x)*std::exp(-5*(uv*uv));
@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
   
   auto torus_mapping = xsom::tab2d::mapping({0, 0}, {2*PI, 2*PI}, {NB_U, NB_V});
   auto tabular_torus = xsom::tab2d::table<Point3D>(torus_mapping,
-						   [](const xsom::Point2D<double>& uv) {auto d = uv - xsom::Point2D<double>(PI,PI); return d*d <= PI*PI;});
+						   [](const xsom::Point2D<double> uv) {auto d = uv - xsom::Point2D<double>(PI,PI); return d*d <= PI*PI;});
   
   // We set the values in the grid from the torus function. The grid
   // contains Poin3D values. Those which are actually set are the ones
