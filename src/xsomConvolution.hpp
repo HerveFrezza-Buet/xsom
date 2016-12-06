@@ -330,6 +330,17 @@ namespace xsom {
 	  : xsom::tab1d::Table<double>(m, fct_pos_is_valid),
 	    convolution(m.size, 1, sigma, this->content, kernel_type) {}
 
+	double operator()(xsom::Point2D<double> pos) const {
+	  return convolution.ws.dst[this->mapping.pos2rank(pos)];
+	}
+	
+	void convolve() {
+	  convolution.convolve();
+	}
+	double get_noconv(xsom::Point2D<double> pos) const {
+	  return this->xsom::tab1d::Table<double>::operator()(pos);
+	}
+	
 	void learn(std::function<double (double)> fct_value_at) {
 	  this->xsom::tab1d::Table<double>::learn(fct_value_at);
 	}
