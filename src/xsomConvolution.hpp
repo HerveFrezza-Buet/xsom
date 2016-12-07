@@ -314,7 +314,7 @@ namespace xsom {
   namespace tab1d {
     namespace fft {
       class Convolution : public xsom::tab1d::Table<double> {
-      private :
+      public :
 
 	mutable xsom::tab::fft::Convolution convolution;
 
@@ -424,7 +424,7 @@ namespace xsom {
     namespace fft {
 
       class Convolution : public xsom::tab2d::Table<double> {
-      private :
+      public:
 
 	mutable xsom::tab::fft::Convolution convolution;
 
