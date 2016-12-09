@@ -12,8 +12,8 @@ namespace xsom {
 	double t;
 	std::random_device rd;
 	std::mt19937 gen;
-	std::bernoulli_distribution d_0;
-	std::bernoulli_distribution d_1;
+	std::bernoulli_distribution d_0; // probability P(x_{t+1} = 0 / x_t = 0)
+	std::bernoulli_distribution d_1; // probability P(x_{t+1} = 1 / x_t = 1)
 	
       public:
 	BinaryAutomata(double p00, double p11):
@@ -31,12 +31,12 @@ namespace xsom {
 	void shift() {
 	  t+=1;
 	  
-	  if(state) {
+	  if(state) { // x_t = 1
 	    bool stay = d_1(gen);
 	    if(! stay)
 	      state = false;
 	  }
-	  else {
+	  else {     // x_t = 0
 	    bool stay = d_0(gen);
 	    if(! stay)
 	      state = true;
@@ -47,18 +47,19 @@ namespace xsom {
     
     namespace continuous {
     class MackeyGlass {
+      // http://www.scholarpedia.org/article/Mackey-Glass_equation
     private:
-      double a,b,d;
+      double gamma, beta, tau, n;
       double t, dt;
-      double x, x_d;
+      double x, x_tau;
       std::deque<double> history;
     public:
-      MackeyGlass(): MackeyGlass(0.2, -0.1, 17.0, 0.1, 0.5) {
+      MackeyGlass(): MackeyGlass(1., 2., 2., 9.65, 0.1, 0.5) {
       }
-      MackeyGlass(double a, double b, double d, double dt, double x_d):
-	a(a), b(b), d(d), t(0), dt(dt), x(x_d), x_d(x_d){
-	history.resize(int(d/dt));
-	std::fill(history.begin(), history.end(), x_d);
+      MackeyGlass(double gamma, double beta, double tau, double n, double dt, double x_tau):
+	gamma(gamma), beta(beta), tau(tau), n(n), t(0), dt(dt), x(x_tau), x_tau(x_tau){
+	history.resize(int(tau/dt));
+	std::fill(history.begin(), history.end(), x_tau);
       }
       double time() const {
 	return t;
@@ -68,9 +69,9 @@ namespace xsom {
 	return x;
       }
       void shift() {
-	x_d = history.front();
+	x_tau = history.front();
 	history.pop_front();
-	x = x + dt * (b * x + a * x_d / (1.0 + pow(x_d, 10.0)));
+	x = x + dt * (beta * x_tau / (1.0 + pow(x_tau, 10.0)) - gamma * x);
 	history.push_back(x);
 	t += dt;
 	
