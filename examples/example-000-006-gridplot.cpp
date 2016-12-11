@@ -44,16 +44,19 @@ int main(int argc, char* argv[]) {
   display()         = ccmpl::show_tics(true, true);
   display().title   = "Grid plot";
   display()         = "equal";
-  display()        += ccmpl::lines<xsom::tab2d::nb_lines(NB_W, NB_H)>("'b-', linewidth=1.0",
+  display()        += ccmpl::lines<xsom::tab2d::nb_lines(NB_W, NB_H)>("'b-', linewidth=1.0, zorder=0",
 								      std::bind(xsom::tab2d::fill_lines<NB_W, NB_H, STEP>, std::ref(table), _1));
-
+  display()        += ccmpl::line("'r-', linewidth=7.0, zorder=1",
+				  std::bind(xsom::tab2d::fill_x, std::ref(table), 0.1, STEP, _1));
+  display()        += ccmpl::line("'g-', linewidth=7.0, zorder=1",
+				  std::bind(xsom::tab2d::fill_y, std::ref(table), 0.1, STEP, _1));
   
   if(generate_mode) {
     display.make_python(VIEW_FILE,true);
     return 0;
   }
   
-  std::cout << display("#", "example-000-006.pdf", ccmpl::nofile())
+  std::cout << display("###", "example-000-006.pdf", ccmpl::nofile())
   	    << ccmpl::stop;
   return 0;
 }

@@ -689,9 +689,30 @@ namespace xsom {
 	    idx += STEP, it = begin + idx, hh += STEP)
 	  *(out++) = *it;
 	*(out++) = *(begin + (idx0 + table.mapping.size.w-1));}
-      
+    }
+
+    void fill_x(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
+      points.clear();
+      auto         out   = std::back_inserter(points);
+      auto         begin = table.content.begin();
+      unsigned int bound = (unsigned int)(table.mapping.size.w*length_ratio+.5);
+      unsigned int i     = 0;
+      unsigned int idx   = 0;
+      auto         it    = begin;
+      for(; i < bound; idx += step, it = begin + idx, i += step)
+	  *(out++) = *it;
+    }
+
+    void fill_y(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
+      points.clear();
+      auto         out   = std::back_inserter(points);
+      auto         begin = table.content.begin();
+      unsigned int bound = (unsigned int)(table.mapping.size.h*length_ratio+.5);
+      unsigned int i     = 0;
+      unsigned int idx   = 0;
+      auto         it    = begin;
+      for(; i < bound; idx += step*table.mapping.size.w, it = begin + idx, i += step)
+	*(out++) = *it;
     }
   }
-    
-    
 }
