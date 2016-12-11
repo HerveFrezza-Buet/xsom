@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -651,6 +652,46 @@ namespace xsom {
       return Table<CONTENT>(m,fct_pos_is_valid);
     }
 
+    constexpr unsigned int nb_lines(unsigned int nb_w, unsigned int nb_h) {
+      return nb_w + nb_h + 2;
+    }
+
+    template<unsigned int NB_W, unsigned int NB_H, unsigned int STEP>
+    void fill_lines(const Table<xsom::Point2D<double> >& table, std::array<std::vector<ccmpl::Point>, nb_lines(NB_W, NB_H)>& lines) {
+      auto it_line = lines.begin();
+      auto begin   = table.content.begin();
+
+      for(unsigned int w = 0; w <= NB_W; ++w, ++it_line) {
+	it_line->clear();
+	auto out = std::back_inserter(*it_line);
+	unsigned int idx   = 0;
+	auto         it    = begin;
+	unsigned int ww    = 0;
+	unsigned int bound = table.mapping.size.w-1;
+	unsigned int idx0  = (unsigned int)(w*bound/(double)NB_W + .5);
+	for(idx = idx0, it = begin + idx;
+	    ww < bound;
+	    idx +=  STEP*table.mapping.size.w, it = begin + idx, ww += STEP)
+	  *(out++) = *it;
+	*(out++) = *(begin + idx0 + bound*table.mapping.size.w);
+      }
+
+      for(unsigned int h = 0; h <= NB_H; ++h, ++it_line) {
+	it_line->clear();
+	auto out = std::back_inserter(*it_line);
+	unsigned int idx   = 0;
+	auto         it    = begin;
+	unsigned int hh    = 0;
+	unsigned int bound = table.mapping.size.h-1;
+	unsigned int idx0  = (unsigned int)(h*bound/(double)NB_H + .5);
+	for(idx = idx0, it = begin + idx;
+	    hh < bound;
+	    idx += STEP, it = begin + idx, hh += STEP)
+	  *(out++) = *it;
+	*(out++) = *(begin + (idx0 + table.mapping.size.w-1));
+      }
+      
+    }
   }
     
     

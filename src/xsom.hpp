@@ -16,6 +16,7 @@
  * @example example-000-003-both.cpp
  * @example example-000-004-tabular.cpp
  * @example example-000-005-convolution.cpp
+ * @example example-000-006-gridplot.cpp
  */ 
 
 
