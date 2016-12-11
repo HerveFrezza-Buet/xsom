@@ -10,16 +10,16 @@ using namespace std::placeholders;
 xsom::Point2D<double> twirl(const xsom::Point2D<double>& p) {
   double r2    = p*p;
   double theta = std::atan2(p.y, p.x) + 3.141592654*std::exp(-2*r2);
-  double r     = r2;
+  double r     = sqrt(r2);
   return {r*std::cos(theta), r*std::sin(theta)};
 }
 
 
 // Even is the map is MAP_SIZExMAP_SIZE, we will display a NB_WxNB_H grid. For each line in the grid, the values in the map are taken at each STEP interval.
 #define MAP_SIZE 100
-#define NB_W 3
-#define NB_H 3
-#define STEP 10
+#define NB_W 15
+#define NB_H 15
+#define STEP 2
 
 
 #define VIEW_FILE "viewer-000-006.py"
@@ -44,12 +44,12 @@ int main(int argc, char* argv[]) {
   display()         = ccmpl::show_tics(true, true);
   display().title   = "Grid plot";
   display()         = "equal";
-  display()        += ccmpl::lines<xsom::tab2d::nb_lines(NB_W, NB_H)>("'r-', linewidth=1.0",
+  display()        += ccmpl::lines<xsom::tab2d::nb_lines(NB_W, NB_H)>("'b-', linewidth=1.0",
 								      std::bind(xsom::tab2d::fill_lines<NB_W, NB_H, STEP>, std::ref(table), _1));
 
   
   if(generate_mode) {
-    display.make_python(VIEW_FILE,false);
+    display.make_python(VIEW_FILE,true);
     return 0;
   }
   

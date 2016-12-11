@@ -683,13 +683,12 @@ namespace xsom {
 	auto         it    = begin;
 	unsigned int hh    = 0;
 	unsigned int bound = table.mapping.size.h-1;
-	unsigned int idx0  = (unsigned int)(h*bound/(double)NB_H + .5);
+	unsigned int idx0  = (unsigned int)(h*bound/(double)NB_H + .5)*table.mapping.size.w;
 	for(idx = idx0, it = begin + idx;
 	    hh < bound;
 	    idx += STEP, it = begin + idx, hh += STEP)
 	  *(out++) = *it;
-	*(out++) = *(begin + (idx0 + table.mapping.size.w-1));
-      }
+	*(out++) = *(begin + (idx0 + table.mapping.size.w-1));}
       
     }
   }
