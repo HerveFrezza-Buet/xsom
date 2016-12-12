@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
 				  std::bind(xsom::tab2d::fill_y, std::ref(table), 0.1, STEP, _1));
   
   if(generate_mode) {
-    display.make_python(VIEW_FILE,true);
+    display.make_python(VIEW_FILE,false);
     return 0;
   }
   
