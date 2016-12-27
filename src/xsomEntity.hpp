@@ -1,5 +1,6 @@
 #pragma once 
 
+#include <string>
 #include <vector>
 #include <algorithm>
 
@@ -39,6 +40,21 @@ namespace xsom {
     
   };
 
+  class Debug : public xsom::Entity {
+  private:
+    std::string name;
+  public:
+    Debug(const std::string& name) :  xsom::Entity(), name(name) {}
+    Debug() : Debug("anonymous"){}
+    Debug(const Debug&)            = default;
+    Debug& operator=(const Debug&) = default;
+    virtual void on_learn() {
+      std::cerr << "Debug : " << name << " : learn." << std::endl;
+    }
+    virtual void on_update() {
+      std::cerr << "Debug : " << name << " : update." << std::endl;
+    }
+  };
 
   class Container : public xsom::Entity { 
   private:

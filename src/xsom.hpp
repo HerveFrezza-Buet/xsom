@@ -6,6 +6,7 @@
 #include <xsomMap.hpp>
 #include <xsomNetwork.hpp>
 #include <xsomPoint.hpp>
+#include <xsomSeq.hpp>
 #include <xsomTable.hpp>
 #include <xsomUtility.hpp>
 
@@ -14,6 +15,8 @@
  * @example example-000-001-thalamic.cpp  
  * @example example-000-002-cortical.cpp
  * @example example-000-003-both.cpp
+ *
+ * @example example-001-001-sequencer.cpp  
  *
  * @example example-002-001-tabular.cpp
  * @example example-002-002-convolution.cpp
