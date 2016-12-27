@@ -36,14 +36,18 @@ int main(int argc, char* argv[]) {
   // Let us build a sequencer for synchronizing the computation
   auto seq    = xsom::setup::sequencer(archi,display);
 
-  seq.__print("toto");
-  seq.__print("titi");
-  seq.__begin();
-  seq.__print("tutu");
-  seq.__print("tata");
-  seq.__end();
-  seq.__print("caca");
-  seq.__print("pipi");
+  unsigned int i = 0;
+  seq.__def("body");
+  seq.__step([&i](){std::cerr << "i = " << i << std::endl;});
+  seq.__step([&i](){++i;});
+  seq.__fed();
+  seq.__for(3);
+  seq.__step([&i](){i = 0;});
+  seq.__while([&i](){return i < 5;});
+  seq.__call("body");
+  seq.__elihw();
+  seq.__rof();
+  
 
   // Now we can run the simulation.
   seq.run();
