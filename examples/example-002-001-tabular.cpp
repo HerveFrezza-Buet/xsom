@@ -50,7 +50,7 @@ double gabor(const xsom::Point2D<double>& uv) {
 
 // Let us play with tabular functions.
 
-#define VIEW_FILE "viewer-000-004.py"
+#define VIEW_FILE "viewer-002-001.py"
 int main(int argc, char* argv[]) {
   if(argc < 2) {
     std::cout << "Usage : " << std::endl
@@ -203,7 +203,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
   
-  std::cout << display(flags,"example-000-004.pdf", ccmpl::nofile())
+  std::cout << display(flags,"example-002-001.pdf", ccmpl::nofile())
   	    << ccmpl::stop;
   return 0;
 }

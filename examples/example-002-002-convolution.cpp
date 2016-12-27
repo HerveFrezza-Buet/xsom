@@ -43,7 +43,7 @@ double f(const xsom::Point2D<double>& uv) {
 
 #define SIGMA (NB_U/30)
 
-#define VIEW_FILE "viewer-000-005.py"
+#define VIEW_FILE "viewer-002-002.py"
 int main(int argc, char* argv[]) {
   if(argc < 2) {
     std::cout << "Usage : " << std::endl
@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
   
-  std::cout << display(flags,"example-000-005.pdf", ccmpl::nofile())
+  std::cout << display(flags,"example-002-002.pdf", ccmpl::nofile())
   	    << ccmpl::stop;
   return 0;
 }

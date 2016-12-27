@@ -22,7 +22,7 @@ xsom::Point2D<double> twirl(const xsom::Point2D<double>& p) {
 #define STEP 2
 
 
-#define VIEW_FILE "viewer-000-006.py"
+#define VIEW_FILE "viewer-002-003.py"
 int main(int argc, char* argv[]) {
   if(argc < 2) {
     std::cout << "Usage : " << std::endl
@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
   
-  std::cout << display("###", "example-000-006.pdf", ccmpl::nofile())
+  std::cout << display("###", "example-002-003.pdf", ccmpl::nofile())
   	    << ccmpl::stop;
   return 0;
 }
