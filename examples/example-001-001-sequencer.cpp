@@ -36,17 +36,24 @@ int main(int argc, char* argv[]) {
   // Let us build a sequencer for synchronizing the computation
   auto seq    = xsom::setup::sequencer(archi,display);
 
+
   unsigned int i = 0;
-  seq.__def("body");
-  seq.__step([&i](){std::cerr << "i = " << i << std::endl;});
+  seq.__for(20);
+  seq.__if([&i](){return (i/2)%2 == 0;});
+  /* */ seq.__if([&i](){return i%2 == 0;});
+  /* */ seq.__else();
+  /*   */ seq.__print("BBBB");
+  /* */ seq.__fi();
+  seq.__else();
+  /* */ seq.__if([&i](){return i%2 == 0;});
+  /*   */ seq.__print("CCCC");
+  /* */ seq.__else();
+  /* */ seq.__fi();
+  seq.__fi();
   seq.__step([&i](){++i;});
-  seq.__fed();
-  seq.__for(3);
-  seq.__step([&i](){i = 0;});
-  seq.__while([&i](){return i < 5;});
-  seq.__call("body");
-  seq.__elihw();
   seq.__rof();
+
+  
   
 
   // Now we can run the simulation.

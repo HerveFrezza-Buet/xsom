@@ -239,10 +239,113 @@ namespace xsom {
     };
 
     
+
+    class If : public Instruction {
+    private:
+      friend class xsom::setup::Sequencer;
+      Instr body_then;
+      Instr body_else;
+      Instr body;
+      std::function<bool ()> test;
+      bool first;
+
+      template<typename TEST>
+      If(const TEST& test, Instr bthen, Instr belse)
+	: Instruction(), body_then(bthen), body_else(belse), body(nullptr), test(test), first(true) {}
+
+    protected:
+      
+      virtual void execute() {
+	if(first) {
+	  if(test())
+	    body = body_then;
+	  else
+	    body = body_else;
+	}
+
+	has_next = body != nullptr;
+
+	if(has_next) {
+	  try {
+	    body->next();
+	  }
+	  catch(Done e) {
+	    has_next = false;
+	  }
+	}
+      }
+
+    public:
+      
+      virtual Instr deep_copy() {
+	Instr bt = body_then;
+	Instr be = body_else;
+	if(bt != nullptr) bt = body_then->deep_copy();
+	if(be != nullptr) be = body_else->deep_copy();
+	return Instr(new If(test, bt, be));
+      }
+      
+    };
+    
   }
 
   namespace setup {
 
+    /**
+     * Sequencer offers a mini-programming language in order to schedule the computation.
+     * @code{.cpp}
+     * // auto seq = xsom::setup::sequencer();
+     * // auto seq = xsom::setup::sequencer(archi);
+     * // auto seq = xsom::setup::sequencer(display);
+     * auto seq = xsom::setup::sequencer(archi,display);
+     * 
+     * // Instruction
+     * seq.__step(f); // void f()
+     *
+     * // Predefined print on cerr
+     * seq.__print("Hello world !");
+     *
+     * // Sequence (not really useful)
+     * seq.__begin();
+     * ...
+     * seq.__end();
+     *
+     * // Macro definition and call
+     * seq.__def("foo")
+     * ...
+     * seq.__fed()
+     * ...
+     * seq.__call("foo")
+     *
+     * // If
+     * seq.__if(check); // bool check()
+     * ... // then code here, can be empty.
+     * seq.__else();
+     * ... // else code here, can be empty.
+     * seq.__fi();
+     *
+     * // Infinite loop
+     * seq.__loop();
+     * ...
+     * seq.__pool();
+     *
+     * // Finite loop (repeate n times)
+     * seq.__for(n);
+     * ...
+     * seq.__rof();
+     *
+     * // While loop (repeate n times)
+     * seq.__while(check); // bool check()
+     * ...
+     * seq.__elihw();
+     *
+     * // Run the architecture
+     * seq.__update();
+     * seq.__learn();
+     * seq.__update_and_learn();
+     *
+     * @endcode
+     */
     class Sequencer {
     private:
       xsom::Container* archi;
@@ -255,6 +358,7 @@ namespace xsom {
       std::stack<std::string>                    macro_names;
       std::stack<unsigned int>                   for_times;
       std::stack<std::function<bool ()>>         tests;
+      std::stack<xsom::instr::Instr>             thens;
       
 
       std::string next(std::map<std::string,unsigned int>& frame,
@@ -408,7 +512,7 @@ namespace xsom {
       }
       
       /**
-       * close the _while call.
+       * close the __while call.
        */
       void __elihw() {
 	auto seq = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
@@ -418,27 +522,61 @@ namespace xsom {
       }
 
       /**
+       * if
+       */
+      template<typename TEST>
+      void __if(const TEST& test) {
+	context.push(std::list<xsom::instr::Instr>());
+	tests.push(test);
+      }
+      
+      /**
+       * else
+       */
+      void __else() {
+	xsom::instr::Instr bthen = nullptr;
+	if(context.top().size() > 0)
+	  bthen = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
+	thens.push(bthen);
+	context.pop();
+	context.push(std::list<xsom::instr::Instr>());
+      }
+      
+      /**
+       * close the __if call.
+       */
+      void __fi() {
+	xsom::instr::Instr belse = nullptr;
+	if(context.top().size() > 0)
+	  belse = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
+	context.pop();
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::If(tests.top(), thens.top(), belse)));
+	tests.pop();
+	thens.pop();
+      }
+
+      /**
        * Update the architecture
        */
       void __update() {
-	if(archi != null_ptr)
-	  __step([archi](){archi->update();});
+	if(archi != nullptr)
+	  __step([archi = this->archi](){archi->update();});
       }
 
       /**
        * Learn the architecture
        */
       void __learn() {
-	if(archi != null_ptr)
-	  __step([archi](){archi->learn();});
+	if(archi != nullptr)
+	  __step([archi = this->archi](){archi->learn();});
       }
 
       /**
        * Update and learn the architecture
        */
       void __update_and_learn() {
-	if(archi != null_ptr)
-	  __step([archi](){archi->update(); archi->learn();});
+	if(archi != nullptr)
+	  __step([archi = this->archi](){archi->update(); archi->learn();});
       }
       
       /**
