@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
   /* */ seq.__def("learn step");
   /* */   seq.__update_and_learn();
   /* */   seq.__call("tick");
-  /* */   seq.__plot_pdf(flags, "learn-frame");
+  /* */   seq.__plot(flags, "learn-frame", "update-frame");
   /* */ seq.__fed();
   
   /* */ seq.__for(10);

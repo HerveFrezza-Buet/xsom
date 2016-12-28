@@ -344,6 +344,11 @@ namespace xsom {
      * seq.__learn();
      * seq.__update_and_learn();
      *
+     * // Plot the data.  std::string flags()
+     * seq.__plot(flags);  
+     * seq.__plot(flags, "pdf-frame" "png-frame");
+     * seq.__plot_pdf(flags, "pdf-frame");
+     * seq.__plot_png(flags, "png-frame");
      * @endcode
      */
     class Sequencer {
