@@ -384,6 +384,10 @@ namespace xsom {
 	return next(frame_png, name, "png");
       }
 
+      void print_save_info(const std::string& filename) {
+	std::cerr << "Sequencer info : \"" << filename << "\" saved." << std::endl;
+      }
+
       
       Sequencer(xsom::Container* archi, ccmpl::chart::Layout* display)
 	: archi(archi), display(display) {
@@ -577,6 +581,64 @@ namespace xsom {
       void __update_and_learn() {
 	if(archi != nullptr)
 	  __step([archi = this->archi](){archi->update(); archi->learn();});
+      }
+
+      /**
+       * Plot. flags is "bool flags()"
+       */
+      template<typename FLAGS>
+      void __plot(const FLAGS& flags) {
+	if(display != nullptr) {
+	  std::function<std::string ()> f(flags);
+	  __step([display = this->display, f]() {std::cout << (*display)(f(), ccmpl::nofile(), ccmpl::nofile());});
+	}
+      }
+      
+      /**
+       * Plot. flags is "bool flags()"
+       */
+      template<typename FLAGS>
+      void __plot_png(const FLAGS& flags, const std::string& png_prefix) {
+	if(display != nullptr) {
+	  std::function<std::string ()> f(flags);
+	  __step([this, f, png_prefix]() {
+	      auto png = this->next_png(png_prefix);
+	      std::cout << (*(this->display))(f(), ccmpl::nofile(), png);
+	      this->print_save_info(png);
+	    });
+	}
+      }
+      
+      /**
+       * Plot. flags is "bool flags()"
+       */
+      template<typename FLAGS>
+      void __plot_pdf(const FLAGS& flags, const std::string& pdf_prefix) {
+	if(display != nullptr) {
+	  std::function<std::string ()> f(flags);
+	  __step([this, f, pdf_prefix]() {
+	      auto pdf = this->next_pdf(pdf_prefix);
+	      std::cout << (*(this->display))(f(), pdf, ccmpl::nofile());
+	      this->print_save_info(pdf);
+	    });
+	}
+      }
+      
+      /**
+       * Plot. flags is "bool flags()"
+       */
+      template<typename FLAGS>
+      void __plot(const FLAGS& flags, const std::string& pdf_prefix, const std::string& png_prefix) {
+	if(display != nullptr) {
+	  std::function<std::string ()> f(flags);
+	  __step([this, f, pdf_prefix, png_prefix]() {
+	  auto pdf = this->next_pdf(pdf_prefix);
+	  auto png = this->next_png(png_prefix);
+	      std::cout << (*(this->display))(f(), pdf, png);
+	      this->print_save_info(pdf);
+	      this->print_save_info(png);
+	    });
+	}
       }
       
       /**

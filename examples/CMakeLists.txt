@@ -11,8 +11,7 @@ file(
 SET(SHARE_PATH_CFLAGS "-DSHARE_PATH=\"\\\"${CMAKE_INSTALL_PREFIX}/share/${CMAKE_PROJECT_NAME}\\\"\"")
 
 # loop over the list to compile them
-#foreach(f ${usage_examples})
-foreach(f example-001-001-sequencer.cpp)
+foreach(f ${usage_examples})
     get_filename_component(exampleName ${f} NAME_WE) 
     add_executable (${exampleName} ${f}) 
     set_target_properties(${exampleName} PROPERTIES LINKER_LANGUAGE CXX)

@@ -1,31 +1,38 @@
 #include <iostream>
+#include <functional>
 
 #include <xsom.hpp>
 #include <ccmpl.hpp>
+using namespace std::placeholders;
 
 /* This example shows how to use a sequencer in order to control executions. */
 
 
+// This draws a gabor function depending on time.
+void fill_data(std::vector<ccmpl::Point>& curve, double& time) {
+  curve.clear();
+  for(double x = -3; x <= 3 ; x += .05) 
+    curve.push_back({x,std::cos(10*(x+.01*time))*std::exp(-x*x)});
+}
 
-#define VIEW_FILE "viewer-001-001.py"
+
+std::string flags() {return "#";}
+
+
+#define VIEW_PREFIX "viewer-001-001"
 int main(int argc, char* argv[]) {
-  if(argc != 2) {
-    std::cout << "Usage : " << std::endl
-	      << argv[0] << " generate" << std::endl
-	      << argv[0] << " run | ./" << VIEW_FILE << std::endl;
-    return 0;
-  }
-
-  bool generate_mode = std::string(argv[1])=="generate";
+  
+  ccmpl::Main m(argc,argv,VIEW_PREFIX);
+  
+  double current_time = 0;
   
   // Plot
   
-  auto display = ccmpl::layout(5.0, 5.0, {"#"});
-  
-  if(generate_mode) {
-    display.make_python(VIEW_FILE,true);
-    return 0;
-  }
+  auto display  = ccmpl::layout(5.0, 5.0, {"#"});
+  display()     = {-5, 5, -1, 1};   
+  display()    += ccmpl::line("'b-'", std::bind(fill_data, _1, std::ref(current_time))); 
+
+  m.generate(display,true);
 
   // Computation : let us build a fake architecture
 
@@ -36,26 +43,32 @@ int main(int argc, char* argv[]) {
   // Let us build a sequencer for synchronizing the computation
   auto seq    = xsom::setup::sequencer(archi,display);
 
+  // See the doxygen documentation of xsom::setup::Sequencer for an
+  // exhaustive list of sequencer functionalities.
 
-  unsigned int i = 0;
-  seq.__for(20);
-  seq.__if([&i](){return (i/2)%2 == 0;});
-  /* */ seq.__if([&i](){return i%2 == 0;});
-  /* */ seq.__else();
-  /*   */ seq.__print("BBBB");
-  /* */ seq.__fi();
-  seq.__else();
-  /* */ seq.__if([&i](){return i%2 == 0;});
-  /*   */ seq.__print("CCCC");
-  /* */ seq.__else();
-  /* */ seq.__fi();
-  seq.__fi();
-  seq.__step([&i](){++i;});
-  seq.__rof();
-
+  /* */ seq.__def("tick");
+  /* */   seq.__step([&current_time](){++current_time;});
+  /* */ seq.__fed();
   
+  /* */ seq.__def("update step");
+  /* */   seq.__update();
+  /* */   seq.__call("tick");
+  /* */   seq.__plot_png(flags, "update-frame");
+  /* */ seq.__fed();
   
-
+  /* */ seq.__def("learn step");
+  /* */   seq.__update_and_learn();
+  /* */   seq.__call("tick");
+  /* */   seq.__plot_pdf(flags, "learn-frame");
+  /* */ seq.__fed();
+  
+  /* */ seq.__for(10);
+  /* */   seq.__for(9);
+  /* */     seq.__call("update step");
+  /* */   seq.__rof();
+  /* */   seq.__call("learn step");
+  /* */ seq.__rof();
+  
   // Now we can run the simulation.
   seq.run();
   
