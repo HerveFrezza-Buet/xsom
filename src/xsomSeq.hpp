@@ -238,6 +238,39 @@ namespace xsom {
       
     };
 
+
+    class RepUntil : public Instruction {
+    private:
+      friend class xsom::setup::Sequencer;
+      Instr body;
+      std::function<bool ()> test;
+
+      template<typename TEST>
+      RepUntil(Instr body, const TEST& test) : Instruction(), body(body), test(test) {}
+
+    protected:
+      
+      virtual void execute() {
+	try {
+	  body->next();
+	}
+	catch(Done e) {
+	  has_next = !(test());
+	  if(has_next) {
+	    body = body->deep_copy();
+	    execute();
+	  }
+	}
+      }
+
+    public:
+      
+      virtual Instr deep_copy() {
+	return Instr(new RepUntil(body->deep_copy(), test));
+      }
+      
+    };
+
     
 
     class If : public Instruction {
@@ -334,10 +367,15 @@ namespace xsom {
      * ...
      * seq.__rof();
      *
-     * // While loop (repeate n times)
+     * // While loop 
      * seq.__while(check); // bool check()
      * ...
      * seq.__elihw();
+     *
+     * // Repeat until loop
+     * seq.__repeat();
+     * ...
+     * seq.__until(check); // bool check()
      *
      * // Run the architecture
      * seq.__update();
@@ -530,6 +568,23 @@ namespace xsom {
 	tests.pop();
       }
 
+      /**
+       * Define an Repeat. 
+       */
+      void __repeat() {
+	context.push(std::list<xsom::instr::Instr>());
+      }
+      
+      /**
+       * Define an until statement, closing __repeat. test is "bool test(). 
+       */
+      template<typename TEST>
+      void __until(const TEST& test) {
+	auto seq = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
+	context.pop();
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::RepUntil(seq,test)));
+      }
+      
       /**
        * if
        */
