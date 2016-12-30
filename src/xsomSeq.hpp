@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <iomanip>
 #include <list>
 #include <stack>
@@ -387,6 +388,19 @@ namespace xsom {
      * seq.__plot(flags, "pdf-frame" "png-frame");
      * seq.__plot_pdf(flags, "pdf-frame");
      * seq.__plot_png(flags, "png-frame");
+     *
+     * // save and load
+     * seq.__on_load(load_fct); // void load_fct(std::istream&)
+     * seq.__on_save(save_fct); // void save_fct(std::ostream&)
+     * ...
+     * seq.__load("status.data"); 
+     * seq.__save("status.data"); 
+     * seq.__autosave("status", "data"); // saves "status-000000.data"
+     * seq.__autosave("status", "data"); // saves "status-000001.data"
+     * seq.__autosave("status", "data"); // saves "status-000002.data"
+     * ...
+     *
+     *
      * @endcode
      */
     class Sequencer {
@@ -396,17 +410,20 @@ namespace xsom {
 
       std::map<std::string,unsigned int>         frame_pdf;
       std::map<std::string,unsigned int>         frame_png;
+      std::map<std::string,unsigned int>         frame_file;
       std::map<std::string,xsom::instr::Instr>   macros;
       std::stack<std::list<xsom::instr::Instr>>  context;
       std::stack<std::string>                    macro_names;
       std::stack<unsigned int>                   for_times;
       std::stack<std::function<bool ()>>         tests;
       std::stack<xsom::instr::Instr>             thens;
+      std::function<void (std::ostream&)>        save_fct;
+      std::function<void (std::istream&)>        load_fct;
       
 
-      std::string next(std::map<std::string,unsigned int>& frame,
-		       const std::string& name,
-		       const std::string& suffix) {
+      static std::string next(std::map<std::string,unsigned int>& frame,
+			      const std::string& name,
+			      const std::string& suffix) {
 	auto kv = frame.find(name);
 	unsigned int id = 0;
 	if(kv == frame.end())
@@ -418,6 +435,12 @@ namespace xsom {
 	     << '.' << suffix;
 	return ostr.str();
       }
+      
+      std::string next_filename(const std::string& prefix,
+				const std::string& suffix) {
+	return next(frame_file, prefix, suffix);
+      }
+
 
       std::string next_pdf(const std::string& name) {
 	return next(frame_pdf, name, "pdf");
@@ -429,6 +452,44 @@ namespace xsom {
 
       void print_save_info(const std::string& filename) {
 	std::cerr << "Sequencer info : \"" << filename << "\" saved." << std::endl;
+      }
+      
+      void print_load_info(const std::string& filename) {
+	std::cerr << "Sequencer info : \"" << filename << "\" loaded." << std::endl;
+      }
+
+
+      void load(const std::string& filename) {
+	if(this->load_fct) {
+	  std::ifstream file;
+	  file.open(filename);
+	  if(file) {
+	    this->load_fct(file);
+	    file.close();
+	  }
+	  else
+	    std::cerr << "Sequencer error : cannot open \"" << filename << "\" for reading." << std::endl;
+	}
+	else
+	  std::cerr << "Sequencer error : no load function defined (have you called __on_load ?)."<< std::endl;
+	  
+      }
+
+
+      void save(const std::string& filename) {
+	if(this->save_fct) {
+	  std::ofstream file;
+	  file.open(filename);
+	  if(file) {
+	    this->save_fct(file);
+	    file.close();
+	  }
+	  else
+	    std::cerr << "Sequencer error : cannot open \"" << filename << "\" for writing." << std::endl;
+	}
+	else
+	  std::cerr << "Sequencer error : no save function defined (have you called __on_save ?)."<< std::endl;
+	  
       }
 
       
@@ -699,6 +760,45 @@ namespace xsom {
 	      this->print_save_info(png);
 	    });
 	}
+      }
+
+      /**
+       * Set load function : void f(std::istream&)
+       */
+      template<typename F>
+      void __on_load(const F& f) {
+	std::function<void (std::istream&)> l(f);
+	__step([this,l](){this->load_fct = l;});
+      }
+
+      /**
+       * Set save function : void f(std::ostream&)
+       */
+      template<typename F>
+      void __on_save(const F& f) {
+	std::function<void (std::ostream&)> s(f);
+	__step([this,s](){this->save_fct = s;});
+      }
+
+      /**
+       * Load file
+       */
+      void __load(const std::string& filename) {
+	__step([this, filename](){this->load(filename);});
+      }
+
+      /**
+       * Save file
+       */
+      void __save(const std::string& filename) {
+	__step([this, filename](){this->save(filename);});
+      }
+      
+      /**
+       * Save file with prefix-xxxxxx.suffix format.
+       */
+      void __autosave(const std::string& prefix, const std::string& suffix) {
+	__step([this, prefix, suffix](){this->save(this->next_filename(prefix, suffix));});
       }
       
       /**
