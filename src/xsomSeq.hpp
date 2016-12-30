@@ -466,6 +466,7 @@ namespace xsom {
 	  if(file) {
 	    this->load_fct(file);
 	    file.close();
+	    print_load_info(filename);
 	  }
 	  else
 	    std::cerr << "Sequencer error : cannot open \"" << filename << "\" for reading." << std::endl;
@@ -483,6 +484,7 @@ namespace xsom {
 	  if(file) {
 	    this->save_fct(file);
 	    file.close();
+	    print_save_info(filename);
 	  }
 	  else
 	    std::cerr << "Sequencer error : cannot open \"" << filename << "\" for writing." << std::endl;
