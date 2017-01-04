@@ -40,19 +40,21 @@
  *
  * The main components of xsom are maps. A map can be viewed,
  * mathematically, as a field. It is a function that associates a
- * value to each point of some tolopogical space. For example, an
+ * value to each element of some tolopogical space. These elements
+ * will be referred to as positions in the following. For example, an
  * array can be such a function :
+ *
  * @code
- * typedef std::array<double,101> Field;
+ * typedef unsigned int           Position;
+ * typedef double                 Value
+ * typedef std::array<Value, 101> Field;
  * ...
  * Field f;
- * a = f[13];
- * c = f[92];
- * d = f[100];
- * e = f[0];
+ * Position p = 13;
+ * Value a = f[p];
  * @endcode
  *
- * Here, the topological space is [0..99] and the values are
+ * Here, the topological space is [0..100] and the values are
  * scalars. We can also use such an array for coding the contiguous
  * field functions that maps [0,1] to scalar values. The array can
  * code values for f(0/100), f(1/100), f(2/100), ... f(100/100). If
@@ -66,7 +68,7 @@
  *
  * @section Learning
  *
- * Indeed, in xsom, fields a more than functions. They are indeed
+ * Indeed, in xsom, fields a more than functions. They are actually
  * adaptive functions. Indeed, if we consider once again tabular-based
  * functions, changing the values in the table enables to change the
  * field function. In a more functional approach, as tabular-based
@@ -84,31 +86,36 @@
  * @code
  * typedef unsigned int           Position; // This represents [0..100].
  * typedef double                 Value;
- * typedef std::array<double,101> Field;
+ * typedef std::array<Value, 101> Field;
  *
- * double desired_at(Position p) {
+ * Value desired_at(Position p) {
  *  return sin(.001*p);
  * }
  *
- * template<typename FUN>
- * void set(Field& f, const FUN& d) {
+ * void set_field(Field& f, std::function<Value (Position)> d) {
  *   for(Position i = 0; i < 101; ++i)
  *     f[i] = d(i);
  * }
  *
  * Field f;
- * set(f,desired_at); // this is learning.
+ * auto set = std::bind(set_field, std::ref(f), _1);
+ * ...
+ * set(desired_at); // this is learning... f is handled internally by the set function.
  * @endcode
+ * 
+ * Using functions as set, which handles internally some field, gives
+ * here the flavor of the functions that the user has to provide to
+ * xsom.
  *
  * @section Self-Organizing Maps
  *
  * A self-organizing map (SOM) is indeed a field of prototypes. The
  * topological space used to define the field is the positions in the
  * map (e.g. consider 1D or 2D grids, but also a continuum of such
- * positions). Prototypes can me matched against som input. In xsom,
+ * positions). Prototypes can me matched against the current input. In xsom,
  * this is how distances between a prototype and the current input is
  * evaluated. First we match each prototype to the current value. Each
- * match produced a scalar, which is hight if the prototype and the
+ * match produced a scalar, which is high if the prototype and the
  * input have a good match (i.e. their distance is low). The best
  * matching prototype is the one having the highest match. The result
  * of all matches is a field as well (a field of scalar match values
@@ -122,15 +129,23 @@
  * xsom, the computing process thus consists in "update" stages and
  * "learn" stages. Let us detail it for the basic SOM computation.
  *
+ * Most functions used in the following embed internal field
+ * manipulation, as introduced in previous section.
+ *
  * @code
+ * Position bmu; // This is what a SOM actually provides as an output.
+ *
  * while(true) {
  *   Sample   xi  = get_new_sample();
- *   Position bmu;
  *   
  *   // ### Update of the prototypes "layer" ###
  *
- *   auto desired_matching_activity_fct = [](Position p) -> Value {
- *     return match(p, prototype(p), xi); // At p, the prototype is matched against the current input.
+ *   auto desired_matching_activity_fct = [](const Position& p) -> Value {
+ *     return match(p, prototype(p), xi); 
+ *    // At p, the prototype is matched against the current input. A simpler 
+ *    // "match(prototype(p), xi);" could have been used, but, for the sake of
+ *    // generality, a matching rule that may depend on the location p is 
+ *    // rather considered in xsom.
  *   };
  *   layer_activity_learn(desired_matching_activity_fct);
  *
@@ -138,8 +153,9 @@
  *
  *   map_activity_learn(merge); 
  *   // merge(p) computes a scalar values from all the layer activities at p. 
- *   // This merging is the activity of the map. Here, since we have only one 
- *   // layer, merge(p) = layer_activity(p) is ok.
+ *   // This merging is the activity of the map that owns the layers. Here, 
+ *   // since we have only one layer, using directly layer_activity for the 
+ *   // merge function is ok (merge(p) = layer_activity(p)).
  *
  *   modify_bmu(bmu, argmax_map_activity()); 
  *   // This changes the bmu (passed by reference) according to the
@@ -148,7 +164,39 @@
  *   // argmax_map_activity. As we implement a simple Kohonen map,
  *   // modify_bmu can simply consists in the affectation:
  *   // bmu = argmax_map_activity();
- *   
+ *
+ *   // ### Learn the prototypes ###
+ *
+ *   auto new_weight_fct = [](const Position& p) -> Weight {
+ *     w = layer_weight(p);
+ *     return w + alpha * h(p) * (xi - w);
+ *   };
+ *   layer_weight_learn(new_weight_fct);
  * }
  * @endcode
+ *
+ * Indeed, if several weight layers are used, all layers have to be
+ * updated in order to compute each layer activity field, then merge combines
+ * these activies so that the bmu is updated accordingly. Last,
+ * learning is applied to all the layers.
+ *
+ * The xsom library provides layers and maps. Layers handle weights
+ * and matching activities, and the map gathers them and handles the
+ * BMU. To sum up, let us recall which functions and data are needed for maps and layers:
+ * - Layer elements for computation
+ *   - learning rate           (parameter)
+ *   - xi                      (data)
+ *   - match                   (function)
+ *   - h                       (function)
+ *   - layer_weight            (function)
+ *   - layer_activity_learn    (function)
+ *   - layer_weight_learn      (function)
+ * - Map  elements for computation
+ *   - bmu                  (data)
+ *   - map_activity_learn   (function)
+ *   - merge                (function)
+ *   - argmax_map_activity  (function)
+ *   - modify_bmu           (function)
+ *
+ * The elements listed above are the parameter given to layer and map creation in xsom. 
  **/
