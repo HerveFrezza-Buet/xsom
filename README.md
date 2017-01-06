@@ -10,11 +10,11 @@ First, get the files.
 git clone https://github.com/HerveFrezza-Buet/xsom
 ``` 
 
-Then, you can install all packages as follows. The commands below concern the installation of the gaml package, the installation of the other packages is similar. 
+Then, you can install the package as follows. 
 
 ```
-mkdir -p gaml/build
-cd gaml/build
+mkdir -p xsom/build
+cd xsom/build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr
 sudo make install
 cd ../..
@@ -23,8 +23,8 @@ cd ../..
 For a Fedora-64bit architecture:
 
 ```
-mkdir -p gaml/build
-cd gaml/build
+mkdir -p xsom/build
+cd xsom/build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DLIB_SUFFIX=64
 sudo make install
 cd ../..
