@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include <xsomTable.hpp>
+#include <xsomUtility.hpp>
 
 namespace xsom {
   
@@ -322,13 +323,13 @@ namespace xsom {
 
 	Convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type)
 	  : xsom::tab1d::Table<double>(m),
-	    convolution(m.size, 1, sigma, this->content, kernel_type) {}
+	  convolution(m.size, 1, sigma, this->content, kernel_type) {}
 	
 	template<typename fctPOS_IS_VALID>
 	Convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type,
 		    const fctPOS_IS_VALID& fct_pos_is_valid)
 	  : xsom::tab1d::Table<double>(m, fct_pos_is_valid),
-	    convolution(m.size, 1, sigma, this->content, kernel_type) {}
+	  convolution(m.size, 1, sigma, this->content, kernel_type) {}
 	
 	double get(double pos) const {
 	  return convolution.ws.dst[this->mapping.pos2rank(pos)];
@@ -387,9 +388,71 @@ namespace xsom {
 	    return this->mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	  }
 	}
+
+	
+	double random_bmu() const {
+	  convolution.convolve();
+	  
+	  unsigned int length            = this->mapping.length;
+	  auto c                         = convolution.ws.dst;
+	  std::vector<double> best_pos;
+	  double              best_value = 0;
+	  unsigned int        rank       = 0;
+	
+	  if(use_validation_mask) {
+	  
+	    // Let us find the first valid data.
+	    for(rank = 0; rank < length; ++rank, ++c) {
+	      auto pos = mapping.rank2pos(rank);
+	      if(pos_is_valid(pos)) {
+		best_pos.push_back(pos);
+		best_value = *c;
+		break;
+	      }
+	    }
+
+	    for(++rank,++c; rank < length; ++rank, ++c) {
+	      auto pos = mapping.rank2pos(rank);
+	      if(pos_is_valid(pos)) {
+		if(best_value < *c) {
+		  best_pos.clear();
+		  best_pos.push_back(pos);
+		  best_value = *c;
+		}
+		else if(best_value == *c)
+		  best_pos.push_back(pos);
+	      }
+	    }
+
+	  }
+	  else {
+	    // Let us find the first valid data... 0 here.
+	    best_pos.push_back(mapping.rank2pos(0));
+	    best_value = *(c++);
+	    rank = 1;
+	  
+	    for(++rank,++c; rank < length; ++rank, ++c) {
+	      auto pos = mapping.rank2pos(rank);
+	      if(best_value < *c) {
+		best_pos.clear();
+		best_pos.push_back(pos);
+		best_value = *c;
+	      }
+	      else if(best_value == *c)
+		best_pos.push_back(pos);
+	    }
+	  }
+
+	  return best_pos[random::uniform(best_pos.size())];
+	}
+	
 	
 	double bmu_noconv() const {
 	  return this->xsom::tab1d::Table<double>::bmu();
+	}
+	
+	double random_bmu_noconv() const {
+	  return this->xsom::tab1d::Table<double>::random_bmu();
 	}
 
 	void fill_line(std::vector<ccmpl::Point>& points) const {
@@ -418,7 +481,7 @@ namespace xsom {
       template<typename fctPOS_IS_VALID>
       inline Convolution convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type,
 				     const fctPOS_IS_VALID& fct_pos_is_valid) {
-	  return Convolution(m, sigma, kernel_type, fct_pos_is_valid);
+	return Convolution(m, sigma, kernel_type, fct_pos_is_valid);
       }
     }
   }
@@ -445,7 +508,7 @@ namespace xsom {
 		    double sigma, xsom::tab::fft::KernelType kernel_type,
 		    const fctPOS_IS_VALID& fct_pos_is_valid)
 	  : xsom::tab2d::Table<double>(m,fct_pos_is_valid),
-	    convolution(m.size.w, m.size.h, sigma, this->content, kernel_type) {}
+	  convolution(m.size.w, m.size.h, sigma, this->content, kernel_type) {}
 
 
 	void convolve() {
@@ -504,9 +567,72 @@ namespace xsom {
 	    return this->mapping.rank2pos((unsigned int)(std::distance(begin, std::max_element(begin, end))));
 	  }
 	}
+
+
+	xsom::Point2D<double>  random_bmu() const {
+	  convolution.convolve();
+	  
+	  unsigned int length                           = this->mapping.length;
+	  auto c                                        = convolution.ws.dst;
+	  std::vector<xsom::Point2D<double>> best_pos;
+	  double       best_value                       = 0;
+	  unsigned int rank                             = 0;
+	
+	  if(use_validation_mask) {
+	  
+	    // Let us find the first valid data.
+	    for(rank = 0; rank < length; ++rank, ++c) {
+	      auto pos = mapping.rank2pos(rank);
+	      if(pos_is_valid(pos)) {
+		best_pos.push_back(pos);
+		best_value = *c;
+		break;
+	      }
+	    }
+
+	    for(++rank,++c; rank < length; ++rank, ++c) {
+	      auto pos = mapping.rank2pos(rank);
+	      if(pos_is_valid(pos)) {
+		if(best_value < *c) {
+		  best_pos.clear();
+		  best_pos.push_back(pos);
+		  best_value = *c;
+		}
+		else if(best_value == *c)
+		  best_pos.push_back(pos);
+	      }
+	    }
+
+	  }
+	  else {
+	    // Let us find the first valid data... 0 here.
+	    best_pos.push_back(mapping.rank2pos(0));
+	    best_value = *(c++);
+	    rank = 1;
+	  
+	    for(++rank,++c; rank < length; ++rank, ++c) {
+	      auto pos = mapping.rank2pos(rank);
+	      if(best_value < *c) {
+		best_pos.clear();
+		best_pos.push_back(pos);
+		best_value = *c;
+	      }
+	      else if(best_value == *c)
+		best_pos.push_back(pos);
+	    }
+	  }
+
+	  return best_pos[random::uniform(best_pos.size())];
+	}
+	
 	
 	xsom::Point2D<double> bmu_noconv() const {
 	  return this->xsom::tab2d::Table<double>::bmu();
+	}
+	
+	
+	xsom::Point2D<double> random_bmu_noconv() const {
+	  return this->xsom::tab2d::Table<double>::random_bmu();
 	}
 
 	

@@ -2,6 +2,7 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <iterator>
 #include <cmath>
 
 #include <xsom.hpp>
@@ -10,6 +11,9 @@
 using namespace std::placeholders;
 
 #define PI 3.1415926544
+#define NB_U 200
+#define NB_V  50
+#define NB_TRIANGULATION_POINTS 1000
 
 
 // This shows how to handle tabular data. xsom::tab2d::* classes and
@@ -37,16 +41,19 @@ Point3D torus(const xsom::Point2D<double>& uv) { // u,v in [0,2pi]
 ccmpl::RGB color_of_3d(const Point3D& p) {return {(p.x+1)/2, (p.y+1)/2, (p.z+torus_r)/(2*torus_r)};}
 double     value_of_3d(const Point3D& p) {return  (p.x+1)/2                                       ;}
 
-#define NB_U 200
-#define NB_V  50
-
-#define NB_TRIANGULATION_POINTS 1000
 
 // let us also define a function, gabor : (u,v) -> value
-
 double gabor(const xsom::Point2D<double>& uv) {
   return std::sin(20*uv.x)*std::exp(-5*(uv*uv));
 }
+
+// Last let us define a disk function
+double disk(const xsom::Point2D<double>& uv) {
+  if(uv*uv < .25)
+    return 1;
+  return 0;
+}
+
 
 // Let us play with tabular functions.
 
@@ -61,7 +68,7 @@ int main(int argc, char* argv[]) {
 
   bool generate_mode = std::string(argv[1])=="generate";
 
-  auto display      = ccmpl::layout(20,10, {"####", "###."});
+  auto display      = ccmpl::layout(20,10, {"####", "####"});
   std::string flags = "";
 
   // Let us start with the more general case. We will provide a
@@ -197,6 +204,35 @@ int main(int argc, char* argv[]) {
   display()        += ccmpl::image("cmap='jet', interpolation='bilinear', clim=(-1,1), zorder=0",
   				    std::bind(&xsom::tab2d::Table<double>::fill_image_gray, std::ref(tabular_gabor_lowres), _1, _2, _3, _4, _5));
   flags += '#';
+
+
+  // Now, let us illustrate the random_bmu function
+  
+  auto disk_mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {NB_U, NB_V});
+  auto tabular_disk = xsom::tab2d::table<double>(disk_mapping);
+  tabular_disk.learn(disk);
+
+  auto fill_random_bmus = [&tabular_disk](std::vector<ccmpl::Point>& dots) {
+    dots.clear();
+    auto out = std::back_inserter(dots);
+    for(unsigned int i = 0; i < 10; ++i)
+      *(out++) = tabular_disk.random_bmu(); // The recomputes all from scratch at each call.
+  };
+
+  display++;
+  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::show_tics(false, false);
+  display().title   = "Random BMUs are tossed";
+  display().xtitle  = "u";
+  display().ytitle  = "v";
+  display()         = "equal";
+  display()        += ccmpl::image("cmap='jet', interpolation='bilinear', clim=(-1,1), zorder=0",
+  				    std::bind(&xsom::tab2d::Table<double>::fill_image_gray, std::ref(tabular_disk), _1, _2, _3, _4, _5));
+  display()        += ccmpl::dots("c='w',lw=1,s=40, zorder=1", fill_random_bmus);
+  flags += "##";
+
+
+
   
   if(generate_mode) {
     display.make_python(VIEW_FILE,false);

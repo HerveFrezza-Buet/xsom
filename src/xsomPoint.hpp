@@ -5,6 +5,7 @@
 #include <cstdlib>
 
 #include <ccmpl.hpp>
+#include <xsomUtility.hpp>
 
 namespace xsom {
   template<typename VALUE>
@@ -152,7 +153,7 @@ namespace xsom {
   namespace random {
     inline Index2D index2d(unsigned int w,unsigned int h) {
       
-      return {(unsigned int)(std::rand()/(1.0+RAND_MAX)*w),(unsigned int)(std::rand()/(1.0+RAND_MAX)*h)};
+      return {uniform(w),uniform(h)};
     }
   }
 }

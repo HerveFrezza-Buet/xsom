@@ -10,6 +10,7 @@
 
 #include <ccmpl.hpp>
 #include <xsomPoint.hpp>
+#include <xsomUtility.hpp>
 
 namespace xsom {
 
@@ -124,7 +125,64 @@ namespace xsom {
 	else
 	  return mapping.rank2pos((unsigned int)(std::distance(content.begin(), std::max_element(content.begin(), content.end()))));
       }
+
+      /**
+       * Thus function selects randomly among the best matching units (there may be several ones).
+       */
+      typename MAPPING::position_type random_bmu() const {
+	unsigned int length                                   = mapping.length;
+	auto c                                                = content.begin();
+	std::vector<typename MAPPING::position_type> best_pos;
+	CONTENT                         best_value            = CONTENT();
+	unsigned int rank                                     = 0;
+	
+	if(use_validation_mask) {
 	  
+	  // Let us find the first valid data.
+	  for(rank = 0; rank < length; ++rank, ++c) {
+	    auto pos = mapping.rank2pos(rank);
+	    if(pos_is_valid(pos)) {
+	      best_pos.push_back(pos);
+	      best_value = *c;
+	      break;
+	    }
+	  }
+
+	  for(++rank,++c; rank < length; ++rank, ++c) {
+	    auto pos = mapping.rank2pos(rank);
+	    if(pos_is_valid(pos)) {
+	      if(best_value < *c) {
+		best_pos.clear();
+		best_pos.push_back(pos);
+		best_value = *c;
+	      }
+	      else if(best_value == *c)
+		best_pos.push_back(pos);
+	    }
+	  }
+
+	}
+	else {
+	  // Let us find the first valid data... 0 here.
+	  best_pos.push_back(mapping.rank2pos(0));
+	  best_value = *(c++);
+	  rank = 1;
+	  
+	  for(++rank,++c; rank < length; ++rank, ++c) {
+	    auto pos = mapping.rank2pos(rank);
+	    if(best_value < *c) {
+	      best_pos.clear();
+	      best_pos.push_back(pos);
+	      best_value = *c;
+	    }
+	    else if(best_value == *c)
+	      best_pos.push_back(pos);
+	  }
+	}
+
+	return best_pos[random::uniform(best_pos.size())];
+      }
+      
       void write(std::ostream& os) const {
 	for(auto& val : content) os << val << '\n';
       }
@@ -221,6 +279,10 @@ namespace xsom {
 	return this->xsom::tab::Table<CONTENT,Mapping>::bmu();
       }
       
+      double random_bmu() const {
+	return this->xsom::tab::Table<CONTENT,Mapping>::random_bmu();
+      }
+      
       template<typename ValueOf>
       void fill_line(const ValueOf& value_of_content,
 		     std::vector<ccmpl::Point>& points) const {
@@ -254,6 +316,10 @@ namespace xsom {
       
       double bmu() const {
 	return this->xsom::tab::Table<double,Mapping>::bmu();
+      }
+      
+      double random_bmu() const {
+	return this->xsom::tab::Table<double,Mapping>::random_bmu();
       }
       
       void fill_line(std::vector<ccmpl::Point>& points) const {
@@ -451,6 +517,10 @@ namespace xsom {
 	return this->xsom::tab::Table<CONTENT,Mapping>::bmu();
       }
       
+      xsom::Point2D<double> random_bmu() const {
+	return this->xsom::tab::Table<CONTENT,Mapping>::random_bmu();
+      }
+      
       template<typename ColorOf>
       void fill_palette(const ColorOf& ccmplcolor_of_content,
 			unsigned int nb_triangulation_points,
@@ -559,6 +629,10 @@ namespace xsom {
       
       xsom::Point2D<double> bmu() const {
 	return this->xsom::tab::Table<double,Mapping>::bmu();
+      }
+      
+      xsom::Point2D<double> random_bmu() const {
+	return this->xsom::tab::Table<double,Mapping>::random_bmu();
       }
       
       template<typename ColorOf>
