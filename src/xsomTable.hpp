@@ -63,8 +63,12 @@ namespace xsom {
 	  pos_is_valid(fct_pos_is_valid),
 	  use_validation_mask(true) {}
 
-      CONTENT operator()(typename MAPPING::position_type pos) const {
+      CONTENT get(typename MAPPING::position_type pos) const {
 	return content[mapping.pos2rank(pos)];
+      }
+      
+      CONTENT operator()(typename MAPPING::position_type pos) const {
+	return get(pos);
       }
       
       void clear(const CONTENT& val) {
