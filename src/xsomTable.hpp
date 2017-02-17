@@ -735,7 +735,9 @@ namespace xsom {
     }
 
     template<unsigned int NB_W, unsigned int NB_H, unsigned int STEP>
-    void fill_lines(const Table<xsom::Point2D<double> >& table, std::array<std::vector<ccmpl::Point>, nb_lines(NB_W, NB_H)>& lines) {
+    void fill_lines(const Table<xsom::Point2D<double> >& table, std::vector<std::vector<ccmpl::Point>>& lines) {
+      lines.clear();
+      lines.resize(nb_lines(NB_W,NB_H));
       auto it_line = lines.begin();
       auto begin   = table.content.begin();
 
