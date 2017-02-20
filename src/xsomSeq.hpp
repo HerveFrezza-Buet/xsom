@@ -339,6 +339,9 @@ namespace xsom {
      * // Predefined print on cerr
      * seq.__print("Hello world !");
      *
+     * // Print and increment the counter "cntr"
+     * seq.__counter("cntr", "value is ", 100); // value is 000054/100.
+     *
      * // Sequence (not really useful)
      * seq.__begin();
      * ...
@@ -411,6 +414,7 @@ namespace xsom {
       std::map<std::string,unsigned int>         frame_pdf;
       std::map<std::string,unsigned int>         frame_png;
       std::map<std::string,unsigned int>         frame_file;
+      std::map<std::string,unsigned int>         frame_counter;
       std::map<std::string,xsom::instr::Instr>   macros;
       std::stack<std::list<xsom::instr::Instr>>  context;
       std::stack<std::string>                    macro_names;
@@ -423,6 +427,7 @@ namespace xsom {
 
       static std::string next(std::map<std::string,unsigned int>& frame,
 			      const std::string& name,
+			      const std::string& prefix,
 			      const std::string& suffix) {
 	auto kv = frame.find(name);
 	unsigned int id = 0;
@@ -431,23 +436,26 @@ namespace xsom {
 	else
 	  id = (kv->second)++;
 	std::ostringstream ostr;
-	ostr << name << '-' << std::setw(6) << std::setfill('0') << id
-	     << '.' << suffix;
+	ostr << prefix << std::setw(6) << std::setfill('0') << id << suffix;
 	return ostr.str();
+      }
+
+      std::string next_counter(const std::string& name, unsigned int max) {
+	return next(frame_counter, name, "", std::string("/")+std::to_string(max)+".");
       }
       
       std::string next_filename(const std::string& prefix,
 				const std::string& suffix) {
-	return next(frame_file, prefix, suffix);
+	return next(frame_file, prefix, prefix+"-", std::string(".")+suffix);
       }
 
 
       std::string next_pdf(const std::string& name) {
-	return next(frame_pdf, name, "pdf");
+	return next(frame_pdf, name, name+"-", ".pdf");
       }
 
       std::string next_png(const std::string& name) {
-	return next(frame_png, name, "png");
+	return next(frame_png, name, name+"-", ".png");
       }
 
       void print_save_info(const std::string& filename) {
@@ -576,6 +584,13 @@ namespace xsom {
        */
       void __print(const std::string& message) {
 	__step([message](){std::cerr << "Sequencer info : " << message << std::endl;});
+      }
+
+      /**
+       * Ingrements a counter and prints it.
+       */
+      void __counter(const std::string& name, const std::string& prefix, unsigned int max) {
+	__step([name, prefix, max, this](){std::cerr << prefix << this->next_counter(name,max) << std::endl;});
       }
 
       /**
