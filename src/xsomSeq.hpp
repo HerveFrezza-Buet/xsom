@@ -339,8 +339,9 @@ namespace xsom {
      * // Predefined print on cerr
      * seq.__print("Hello world !");
      *
-     * // Print and increment the counter "cntr"
-     * seq.__counter("cntr", "value is ", 100); // value is 000054/100.
+     * // Print and increment the counter "cntr". It displays something 
+     * // like "value is 000054/100.", starting from "value is 000015/100."
+     * seq.__counter("cntr", "value is ", 15, 100);
      *
      * // Sequence (not really useful)
      * seq.__begin();
@@ -424,8 +425,8 @@ namespace xsom {
       std::function<void (std::ostream&)>        save_fct;
       std::function<void (std::istream&)>        load_fct;
       
-
       static std::string next(std::map<std::string,unsigned int>& frame,
+			      unsigned int offset,
 			      const std::string& name,
 			      const std::string& prefix,
 			      const std::string& suffix) {
@@ -436,12 +437,19 @@ namespace xsom {
 	else
 	  id = (kv->second)++;
 	std::ostringstream ostr;
-	ostr << prefix << std::setw(6) << std::setfill('0') << id << suffix;
+	ostr << prefix << std::setw(6) << std::setfill('0') << id+offset << suffix;
 	return ostr.str();
       }
+      
+      static std::string next(std::map<std::string,unsigned int>& frame,
+			      const std::string& name,
+			      const std::string& prefix,
+			      const std::string& suffix) {
+	return next(frame, 0, name, prefix, suffix);
+      }
 
-      std::string next_counter(const std::string& name, unsigned int max) {
-	return next(frame_counter, name, "", std::string("/")+std::to_string(max)+".");
+      std::string next_counter(const std::string& name, unsigned int start, unsigned int max) {
+	return next(frame_counter, start, name, "", std::string("/")+std::to_string(max)+".");
       }
       
       std::string next_filename(const std::string& prefix,
@@ -589,8 +597,8 @@ namespace xsom {
       /**
        * Ingrements a counter and prints it.
        */
-      void __counter(const std::string& name, const std::string& prefix, unsigned int max) {
-	__step([name, prefix, max, this](){std::cerr << prefix << this->next_counter(name,max) << std::endl;});
+      void __counter(const std::string& name, const std::string& prefix, unsigned int start, unsigned int max) {
+	__step([name, prefix, start, max, this](){std::cerr << prefix << this->next_counter(name, start, max) << std::endl;});
       }
 
       /**
