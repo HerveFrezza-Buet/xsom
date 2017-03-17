@@ -429,9 +429,8 @@ namespace xsom {
 	    // Let us find the first valid data... 0 here.
 	    best_pos.push_back(mapping.rank2pos(0));
 	    best_value = *(c++);
-	    rank = 1;
 	  
-	    for(++rank,++c; rank < length; ++rank, ++c) {
+	    for(rank = 1; rank < length; ++rank, ++c) {
 	      auto pos = mapping.rank2pos(rank);
 	      if(best_value < *c) {
 		best_pos.clear();
@@ -607,10 +606,9 @@ namespace xsom {
 	  else {
 	    // Let us find the first valid data... 0 here.
 	    best_pos.push_back(mapping.rank2pos(0));
-	    best_value = *(c++);
-	    rank = 1;
+	    best_value = *(c++);	    
 	  
-	    for(++rank,++c; rank < length; ++rank, ++c) {
+	    for(rank = 1; rank < length; ++rank, ++c) {
 	      auto pos = mapping.rank2pos(rank);
 	      if(best_value < *c) {
 		best_pos.clear();
