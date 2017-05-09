@@ -18,6 +18,68 @@ namespace xsom {
   namespace setup {
     class Sequencer;
   }
+
+  namespace msg {
+      struct ColorTag {
+	int tag;
+	ColorTag(int tag) : tag(tag) {}
+	friend std::ostream& operator<<(std::ostream& os, const ColorTag& ct) {
+	  return os << "\033[" << ct.tag << "m";
+	}
+      };
+
+
+      inline std::ostream& deflt(std::ostream& os) {
+	os << ColorTag(39);
+	return os;
+      }
+      
+      inline std::ostream& red(std::ostream& os) {
+	os << ColorTag(31);
+	return os;
+      }
+      
+      inline std::ostream& green(std::ostream& os) {
+	os << ColorTag(32);
+	return os;
+      }
+      
+      inline std::ostream& blue(std::ostream& os) {
+	os << ColorTag(34);
+	return os;
+      }
+      
+      inline std::ostream& magenta(std::ostream& os) {
+	os << ColorTag(35);
+	return os;
+      }
+      
+      inline std::ostream& endl(std::ostream& os) {
+	os << deflt << std::endl;
+	return os;
+      }
+
+      inline std::ostream& seq_error(std::ostream& os) {
+	os << red << "Sequencer error : ";
+	return os;
+      }
+
+      inline std::ostream& seq_file_info(std::ostream& os) {
+	os << magenta << "Sequencer file : ";
+	return os;
+      }
+      
+      inline std::ostream& seq_cntr_info(std::ostream& os) {
+	os << blue << "Sequencer count : ";
+	return os;
+      }
+      
+      inline std::ostream& seq_msg_info(std::ostream& os) {
+	os << green << "Sequencer info : ";
+	return os;
+      }
+
+  }
   
   namespace instr {
 
@@ -148,7 +210,7 @@ namespace xsom {
 	    body->next();
 	  }
 	  catch(Done e) {
-	    std::cerr << "Sequencer error : loop has an invalid instruction" << std::endl;
+	    std::cerr << msg::seq_error << "loop has an invalid instruction" << msg::endl;
 	  }
 	}
       }
@@ -343,6 +405,9 @@ namespace xsom {
      * // like "value is 000054/100.", starting from "value is 000015/100."
      * seq.__counter("cntr", "value is ", 15, 100);
      *
+     * // prints a numerical value. double f().
+     * seq.__value("value is", f);
+     *
      * // Sequence (not really useful)
      * seq.__begin();
      * ...
@@ -409,6 +474,8 @@ namespace xsom {
      */
     class Sequencer {
     private:
+
+      
       xsom::Container* archi;
       ccmpl::chart::Layout* display;
 
@@ -467,11 +534,11 @@ namespace xsom {
       }
 
       void print_save_info(const std::string& filename) {
-	std::cerr << "Sequencer info : \"" << filename << "\" saved." << std::endl;
+	std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
       }
       
       void print_load_info(const std::string& filename) {
-	std::cerr << "Sequencer info : \"" << filename << "\" loaded." << std::endl;
+	std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
       }
 
 
@@ -485,10 +552,10 @@ namespace xsom {
 	    print_load_info(filename);
 	  }
 	  else
-	    std::cerr << "Sequencer error : cannot open \"" << filename << "\" for reading." << std::endl;
+	    std::cerr << msg::seq_error << "cannot open \"" << filename << "\" for reading." << msg::endl;
 	}
 	else
-	  std::cerr << "Sequencer error : no load function defined (have you called __on_load ?)."<< std::endl;
+	  std::cerr << msg::seq_error << "no load function defined (have you called __on_load ?)."<< msg::endl;
 	  
       }
 
@@ -503,10 +570,10 @@ namespace xsom {
 	    print_save_info(filename);
 	  }
 	  else
-	    std::cerr << "Sequencer error : cannot open \"" << filename << "\" for writing." << std::endl;
+	    std::cerr << msg::seq_error << "cannot open \"" << filename << "\" for writing." << msg::endl;
 	}
 	else
-	  std::cerr << "Sequencer error : no save function defined (have you called __on_save ?)."<< std::endl;
+	  std::cerr << msg::seq_error << "no save function defined (have you called __on_save ?)."<< msg::endl;
 	  
       }
 
@@ -539,8 +606,8 @@ namespace xsom {
       void __call(const std::string& macro_name) {
 	auto kv = macros.find(macro_name);
 	if(kv == macros.end())
-	  std::cerr << "Sequencer error : macro \"" << macro_name
-		    << "\" undefined." << std::endl;
+	  std::cerr << msg::seq_error << "macro \"" << macro_name
+		    << "\" undefined." << msg::endl;
 	else
 	  context.top().push_back(xsom::instr::Instr(new xsom::instr::Call(kv->second)));
       }
@@ -591,14 +658,23 @@ namespace xsom {
        * Add a step that prints a message on cerr
        */
       void __print(const std::string& message) {
-	__step([message](){std::cerr << "Sequencer info : " << message << std::endl;});
+	__step([message](){std::cerr << msg::seq_msg_info << message << msg::endl;});
       }
 
       /**
        * Ingrements a counter and prints it.
        */
       void __counter(const std::string& name, const std::string& prefix, unsigned int start, unsigned int max) {
-	__step([name, prefix, start, max, this](){std::cerr << prefix << this->next_counter(name, start, max) << std::endl;});
+	__step([name, prefix, start, max, this](){std::cerr << msg::seq_cntr_info<< prefix << this->next_counter(name, start, max) << msg::endl;});
+      }
+
+      /**
+       * Compute and display a value
+       */
+      template<typename Fun>
+      void __value(const std::string& message, const Fun& f) {
+	auto ff = std::bind(f);
+	__step([message, ff]() {std::cerr << "Sequencer note : " << message << ff() << msg::endl;});
       }
 
       /**
@@ -831,7 +907,7 @@ namespace xsom {
        */
       void run() {
 	if(context.size() != 1)
-	  std::cerr << "Sequencer error : there are badly closed instructions" << std::endl;
+	  std::cerr << msg::seq_error << "there are badly closed instructions" << msg::endl;
 	else {
 	  auto main = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
 	  try {
