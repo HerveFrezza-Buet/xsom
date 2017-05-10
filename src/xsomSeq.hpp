@@ -60,22 +60,27 @@ namespace xsom {
       }
 
       inline std::ostream& seq_error(std::ostream& os) {
-	os << red << "Sequencer error : ";
+	os << red     << "Sequencer error : ";
 	return os;
       }
 
       inline std::ostream& seq_file_info(std::ostream& os) {
-	os << magenta << "Sequencer file : ";
+	os << magenta << "Sequencer file  : ";
 	return os;
       }
       
       inline std::ostream& seq_cntr_info(std::ostream& os) {
-	os << blue << "Sequencer count : ";
+	os << blue    << "Sequencer count : ";
+	return os;
+      }
+      
+      inline std::ostream& seq_value_info(std::ostream& os) {
+	os << blue    << "Sequencer value : ";
 	return os;
       }
       
       inline std::ostream& seq_msg_info(std::ostream& os) {
-	os << green << "Sequencer info : ";
+	os << green   << "Sequencer info  : ";
 	return os;
       }
 
@@ -665,7 +670,7 @@ namespace xsom {
        * Ingrements a counter and prints it.
        */
       void __counter(const std::string& name, const std::string& prefix, unsigned int start, unsigned int max) {
-	__step([name, prefix, start, max, this](){std::cerr << msg::seq_cntr_info<< prefix << this->next_counter(name, start, max) << msg::endl;});
+	__step([name, prefix, start, max, this](){std::cerr << msg::seq_cntr_info << prefix << this->next_counter(name, start, max) << msg::endl;});
       }
 
       /**
@@ -674,7 +679,7 @@ namespace xsom {
       template<typename Fun>
       void __value(const std::string& message, const Fun& f) {
 	auto ff = std::bind(f);
-	__step([message, ff]() {std::cerr << "Sequencer note : " << message << ff() << msg::endl;});
+	__step([message, ff]() {std::cerr << msg::seq_value_info << message << ff() << msg::endl;});
       }
 
       /**
