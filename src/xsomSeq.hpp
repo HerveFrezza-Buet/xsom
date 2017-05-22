@@ -44,6 +44,11 @@ namespace xsom {
 	return os;
       }
       
+      inline std::ostream& yellow(std::ostream& os) {
+	os << ColorTag(33);
+	return os;
+      }
+      
       inline std::ostream& blue(std::ostream& os) {
 	os << ColorTag(34);
 	return os;
@@ -51,6 +56,11 @@ namespace xsom {
       
       inline std::ostream& magenta(std::ostream& os) {
 	os << ColorTag(35);
+	return os;
+      }
+      
+      inline std::ostream& cyan(std::ostream& os) {
+	os << ColorTag(36);
 	return os;
       }
       
@@ -75,7 +85,7 @@ namespace xsom {
       }
       
       inline std::ostream& seq_value_info(std::ostream& os) {
-	os << blue    << "Sequencer value : ";
+	os << cyan    << "Sequencer value : ";
 	return os;
       }
       
