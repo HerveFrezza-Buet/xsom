@@ -410,6 +410,9 @@ namespace xsom {
      * // like "value is 000054/100.", starting from "value is 000015/100."
      * seq.__counter("cntr", "value is ", 15, 100);
      *
+     * // Clear/Reset the counter.
+     * seq.__counter_clear("cntr");
+     *
      * // prints a numerical value. double f().
      * seq.__value("value is", f);
      *
@@ -497,6 +500,13 @@ namespace xsom {
       std::function<void (std::ostream&)>        save_fct;
       std::function<void (std::istream&)>        load_fct;
       
+      static void clear(std::map<std::string,unsigned int>& frame,
+			       const std::string& name) {
+	auto kv = frame.find(name);
+	if(kv != frame.end())
+	  frame.erase(kv);
+      }
+      
       static std::string next(std::map<std::string,unsigned int>& frame,
 			      unsigned int offset,
 			      const std::string& name,
@@ -519,7 +529,11 @@ namespace xsom {
 			      const std::string& suffix) {
 	return next(frame, 0, name, prefix, suffix);
       }
-
+      
+      void clear_counter(const std::string& name) {
+	return clear(frame_counter, name);
+      }
+      
       std::string next_counter(const std::string& name, unsigned int start, unsigned int max) {
 	return next(frame_counter, start, name, "", std::string("/")+std::to_string(max)+".");
       }
@@ -667,10 +681,17 @@ namespace xsom {
       }
 
       /**
-       * Ingrements a counter and prints it.
+       * Increments a counter and prints it.
        */
       void __counter(const std::string& name, const std::string& prefix, unsigned int start, unsigned int max) {
 	__step([name, prefix, start, max, this](){std::cerr << msg::seq_cntr_info << prefix << this->next_counter(name, start, max) << msg::endl;});
+      }
+      
+      /**
+       * Clears a counter.
+       */
+      void __counter_clear(const std::string& name) {
+	__step([name, this](){this->clear_counter(name);});
       }
 
       /**
