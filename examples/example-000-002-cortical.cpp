@@ -151,16 +151,14 @@ int main(int argc, char* argv[]) {
   // Plot
   
   auto display     = ccmpl::layout(10.0, 3.0, {"##"});
-  display()        = {0., MAP_SIZE, 0., 1.};
-  display()        = ccmpl::ratio(2,1);
+  display()        = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::equal , ccmpl::span::placeholder);
   display().title  = "map 1";
   display()       += ccmpl::line("'k--'",            std::bind(fill_wgt, std::ref(cw_1),  _1));
   display()       += ccmpl::line("'b-'",             std::bind(fill_act, std::ref(ca_1),  _1));
   display()       += ccmpl::vbar("'r-'",             std::bind(fill_bar, std::ref(win_1), _1));
   display()       += ccmpl::dot ("c='r',lw=1,s=20",  std::bind(fill_x,   std::ref(win_2), _1));
   display++;
-  display()        = {0., MAP_SIZE, 0., 1.};
-  display()        = ccmpl::ratio(2,1);
+  display()        = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::equal , ccmpl::span::placeholder);
   display().title  = "map 2";
   display()       += ccmpl::line("'k--'",            std::bind(fill_wgt, std::ref(cw_2),  _1));
   display()       += ccmpl::line("'b-'",             std::bind(fill_act, std::ref(ca_2),  _1));
