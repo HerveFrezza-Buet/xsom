@@ -10,7 +10,6 @@
 
 using namespace std::placeholders;
 
-#define PI 3.1415926544
 #define NB_U 200
 #define NB_V  50
 #define NB_TRIANGULATION_POINTS 1000
@@ -77,9 +76,9 @@ int main(int argc, char* argv[]) {
   // them). Just omit this argument if you want to allow for values at
   // each position.
   
-  auto torus_mapping = xsom::tab2d::mapping({0, 0}, {2*PI, 2*PI}, {NB_U, NB_V});
+  auto torus_mapping = xsom::tab2d::mapping({0, 0}, {2*M_PI, 2*M_PI}, {NB_U, NB_V});
   auto tabular_torus = xsom::tab2d::table<Point3D>(torus_mapping,
-						   [](const xsom::Point2D<double> uv) {auto d = uv - xsom::Point2D<double>(PI,PI); return d*d <= PI*PI;});
+						   [](const xsom::Point2D<double> uv) {auto d = uv - xsom::Point2D<double>(M_PI,M_PI); return d*d <= M_PI*M_PI;});
   
   // We set the values in the grid from the torus function. The grid
   // contains Poin3D values. Those which are actually set are the ones
@@ -93,9 +92,9 @@ int main(int argc, char* argv[]) {
   // fill_image_rgb with a function that converts the content of the
   // map (Point3D) into a color.
 
-  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::view2d({0.0, 2.0*M_PI}, {0.0, 2.0*M_PI}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(true, true);
-  display().title   = "torus (clipped, fill_image_rgb)";
+  display().title   = "torus (clipped, fill\\_image\\_rgb)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -109,9 +108,9 @@ int main(int argc, char* argv[]) {
   
   // The following does the same with a 1-depth image.
   display++;
-  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::view2d({0.0, 2.0*M_PI}, {0.0, 2.0*M_PI}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(true, true);
-  display().title   = "torus (clipped, fill_image_gray)";
+  display().title   = "torus (clipped, fill\\_image\\_gray)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -133,9 +132,9 @@ int main(int argc, char* argv[]) {
   // way.
 
   display++;
-  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::view2d({0.0, 2.0*M_PI}, {0.0, 2.0*M_PI}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(true, true);
-  display().title   = "torus (clipped, fill_palette)";
+  display().title   = "torus (clipped, fill\\_palette)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -143,9 +142,9 @@ int main(int argc, char* argv[]) {
   flags += '#';
 
   display++;
-  display()         = {0, 2*PI, 0, 2*PI};
+  display()         = ccmpl::view2d({0.0, 2.0*M_PI}, {0.0, 2.0*M_PI}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(true, true);
-  display().title   = "torus (clipped, fill_surface)";
+  display().title   = "torus (clipped, fill\\_surface)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -163,9 +162,9 @@ int main(int argc, char* argv[]) {
   tabular_gabor.learn(gabor);
 
   display++;
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
-  display().title   = "gabor (fill_image_gray)";
+  display().title   = "gabor (fill\\_image\\_gray)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -176,9 +175,9 @@ int main(int argc, char* argv[]) {
   flags += "#";
 
   display++;
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
-  display().title   = "gabor (fill_surface)";
+  display().title   = "gabor (fill\\_surface)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -195,9 +194,9 @@ int main(int argc, char* argv[]) {
   tabular_gabor_lowres.learn(tabular_gabor);
 
   display++;
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
-  display().title   = "gabor (lower resolution, fill_image_gray)";
+  display().title   = "gabor (lower resolution, fill\\_image\\_gray)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -220,7 +219,7 @@ int main(int argc, char* argv[]) {
   };
 
   display++;
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
   display().title   = "Random BMUs are tossed";
   display().xtitle  = "u";
