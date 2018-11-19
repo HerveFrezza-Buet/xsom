@@ -4,7 +4,7 @@
 #include <functional>
 #include <iostream>
 #include <cstdlib>
-#include <iostream>
+#include <random>
 #include <ctime>
 
 #include <ccmpl.hpp>
@@ -44,8 +44,10 @@ unsigned int pos2idx(Pos p) {
   return i;
 }
 
-Input sample() { 
-  return {std::rand()/(1.+RAND_MAX),std::rand()/(1.+RAND_MAX)};
+template<typename RANDOM_DEVICE>
+Input sample(RANDOM_DEVICE& rd) {
+  auto d = std::uniform_real_distribution<double>(0,1);
+  return {d(rd), d(rd)};
 }
 
 double t_dist(const TWeight& w,const Input& xi) {
@@ -134,19 +136,15 @@ void fill_act(const Acts& tab, std::vector<ccmpl::Point>& curve) {
     curve.push_back({idx2pos(i++),v});
 }
 
-#define VIEW_FILE "viewer-000-001.py"
+#define VIEW_PREFIX "viewer-000-001"
 int main(int argc, char* argv[]) {
-  if(argc != 2) {
-    std::cout << "Usage : " << std::endl
-	      << argv[0] << " generate" << std::endl
-	      << argv[0] << " run | ./" << VIEW_FILE << std::endl;
-    return 0;
-  }
-
-  bool generate_mode = std::string(argv[1])=="generate";
-
-  std::srand(std::time(0));
-
+  
+  // random seed initialization
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  
+  ccmpl::Main m(argc,argv,VIEW_PREFIX);
+  
   // Simulation state.
 
   Acts     ta;    // thalamic activities
@@ -160,7 +158,8 @@ int main(int argc, char* argv[]) {
   // The layout string arguments represent with a # the position of
   // the two graphs within a grid, line by line.
   auto display = ccmpl::layout(5.0, 5.0,
-				    {"#-","-#"});
+			       {"#-","-#"},
+			       ccmpl::RGB(1., 1., 1.));
 
   // We set the ratios width_ratios and height_ratios of gridspec. 
   // This function call is optional
@@ -168,25 +167,23 @@ int main(int argc, char* argv[]) {
 
   // Let us detail the first graph. Default limits are x=[0,1], y=[0,1]
   display().title   = "Kohonen SOM";
+  display()         = ccmpl::view2d({0., 1.}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder); 
   display()        += ccmpl::line("'b-'", std::bind(fill_wgt,            std::ref(tw),                _1));
   display()        += ccmpl::dot ("c='r',lw=1,s=20", std::bind(fill_win, std::ref(win), std::ref(tw), _1));
   display()        += ccmpl::dot ("c='r',lw=1,s=20", std::bind(fill_in,  std::ref(xi),                _1));
 
   display++; // Skip to next graph.
-  display()         = {0.,MAP_SIZE,0.,1.}; // set xmin,xmax,ymin,ymax
+  display()         = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder); 
   display().title   = "Map activity";
   display()        += ccmpl::line("'b-'", std::bind(fill_act, std::ref(ta),  _1));
   display()        += ccmpl::vbar("'r-'", std::bind(fill_bar, std::ref(win), _1));
 
-  if(generate_mode) {
-    display.make_python(VIEW_FILE,true);
-    return 0;
-  }
-
+  // the ccmpl::Main object handles generation here
+  m.generate(display, true); // true means "use GUI"
+  
   // Execution
 
-
-  for(auto& w : tw) w = sample();
+  for(auto& w : tw) w = sample(gen);
 
   auto thal 
     = xsom::layer<TWeight,
@@ -215,7 +212,7 @@ int main(int argc, char* argv[]) {
     
     // Update the architecture.
     
-    xi = sample();
+    xi = sample(gen);
     archi.update(); 
     archi.learn();
       

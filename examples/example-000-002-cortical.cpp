@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <ctime>
+#include <random>
 
 #include <ccmpl.hpp>
 
@@ -128,18 +129,15 @@ void fill_act(const Acts& tab, std::vector<ccmpl::Point>& curve) {
     curve.push_back({idx2pos(i++),v});
 }
 
-#define VIEW_FILE "viewer-000-002.py"
+#define VIEW_PREFIX "viewer-000-002"
 int main(int argc, char* argv[]) {
-  if(argc != 2) {
-    std::cout << "Usage : " << std::endl
-  	      << argv[0] << " generate" << std::endl
-  	      << argv[0] << " run | ./" << VIEW_FILE << std::endl;
-    return 0;
-  }
-
-  bool generate_mode = std::string(argv[1])=="generate";
-
-  std::srand(std::time(0));
+  
+  // random seed initialization
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  
+  ccmpl::Main m(argc,argv,VIEW_PREFIX);
+  
   
   // Simulation state.
 
@@ -150,27 +148,26 @@ int main(int argc, char* argv[]) {
   
   // Plot
   
-  auto display     = ccmpl::layout(10.0, 3.0, {"##"});
-  display()        = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::equal , ccmpl::span::placeholder);
+  auto display     = ccmpl::layout(10.0, 3.0, {"##"},
+				   ccmpl::RGB(1., 1., 1.));
+  display()        = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::fit , ccmpl::span::placeholder);
   display().title  = "map 1";
   display()       += ccmpl::line("'k--'",            std::bind(fill_wgt, std::ref(cw_1),  _1));
   display()       += ccmpl::line("'b-'",             std::bind(fill_act, std::ref(ca_1),  _1));
   display()       += ccmpl::vbar("'r-'",             std::bind(fill_bar, std::ref(win_1), _1));
   display()       += ccmpl::dot ("c='r',lw=1,s=20",  std::bind(fill_x,   std::ref(win_2), _1));
   display++;
-  display()        = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::equal , ccmpl::span::placeholder);
+  display()        = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::fit , ccmpl::span::placeholder);
   display().title  = "map 2";
   display()       += ccmpl::line("'k--'",            std::bind(fill_wgt, std::ref(cw_2),  _1));
   display()       += ccmpl::line("'b-'",             std::bind(fill_act, std::ref(ca_2),  _1));
   display()       += ccmpl::vbar("'r-'",             std::bind(fill_bar, std::ref(win_2), _1));
   display()       += ccmpl::dot ("c='r',lw=1,s=20",  std::bind(fill_x,   std::ref(win_1), _1));
 
-  if(generate_mode) {
-    display.make_python(VIEW_FILE,true);
-    return 0;
-  }
 
-
+  // the ccmpl::Main object handles generation here
+  m.generate(display, true); // true means "use GUI"
+  
   // Execution
 
   for(auto& a : ca_1) a=0;

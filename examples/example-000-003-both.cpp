@@ -7,8 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include <iostream>
-#include <ctime>
+#include <random>
 #include <cmath>
 
 #include <ccmpl.hpp>
@@ -44,12 +43,13 @@ double euclidian(const X& x1,const X& x2) {
   return d*d;
 }
 
-Pos random_pos(void) {
+template<typename RANDOM_DEVICE>
+Pos random_pos(RANDOM_DEVICE& rd) {
+    auto d = std::uniform_real_distribution<double>(-1, 1);
   Pos p;
-
   do {
-    p.x = -1 + std::rand()/(1.+RAND_MAX)*2;
-    p.y = -1 + std::rand()/(1.+RAND_MAX)*2;
+    p.x = d(rd);
+    p.y = d(rd);
   } while(p*p > 1);
 
   return p;
@@ -82,8 +82,9 @@ private:
 
 public:
 
-  Layer(void) {
-    for(auto& e : data) e.first = random_pos();
+  template<typename RANDOM_DEVICE>
+  Layer(RANDOM_DEVICE& rd) {
+    for(auto& e : data) e.first = random_pos(rd);
   }
 
   CONTENT operator()(const Pos& pos) const {
@@ -157,11 +158,18 @@ public:
   Pos         win;  // The winning position
   Pos         win_; // The winning position
 
-  void clear() {
-    for(auto& p : tw.data)  p.second = std::rand()/(1.+RAND_MAX);
-    for(auto& p : cw.data)  p.second = random_pos();
-    for(auto& p : tw_.data) p.second = random_pos();
-    for(auto& p : cw_.data) p.second = random_pos();
+  template<typename RANDOM_DEVICE>
+  State(RANDOM_DEVICE& rd)
+    : ta(rd), tw(rd), ca(rd), cw(rd), ma(rd),
+      ta_(rd), tw_(rd), ca_(rd), cw_(rd), ma_(rd) {}
+
+  template<typename RANDOM_DEVICE>
+  void clear(RANDOM_DEVICE& rd) {
+    auto d = std::uniform_real_distribution<double>(0, 1);
+    for(auto& p : tw.data)  p.second = d(rd);
+    for(auto& p : cw.data)  p.second = random_pos(rd);
+    for(auto& p : tw_.data) p.second = random_pos(rd);
+    for(auto& p : cw_.data) p.second = random_pos(rd);
     win.x  = 0;
     win.y  = 0;
     win_.x = 0;
@@ -176,9 +184,10 @@ public:
     x_ = win; // The input of map_ is the previous map position.
   }
 
-  void load(std::string filename) {
+  template<typename RANDOM_DEVICE>
+  void load(std::string filename, RANDOM_DEVICE& rd) {
     std::ifstream file;
-    clear();
+    clear(rd);
     file.open(filename.c_str());
     if(!file) {}
     else {
@@ -316,10 +325,11 @@ void fill_trc(const std::deque<Pos>& trace, std::vector<ccmpl::Point>& points) {
     points.push_back({e.x,e.y});
 }
 
-void fill_cod(std::vector<ccmpl::ColorAt>& points) {
+template<typename RANDOM_DEVICE>
+void fill_cod(std::vector<ccmpl::ColorAt>& points, RANDOM_DEVICE& rd) {
   points.clear();
   for(int i=0; i<MAP_SIZE; ++i) {
-    Pos s = random_pos();
+    Pos s = random_pos(rd);
     points.push_back({s.x,s.y,
 	  ccmpl::color::from_point(s,
 				  -1.0,1.0,
@@ -336,24 +346,29 @@ void fill_cod(std::vector<ccmpl::ColorAt>& points) {
 
 
 int main(int argc, char* argv[]) {
+  
+  // random seed initialization
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  
   if(argc != 3) {
     std::cout << "Usage : " << std::endl
   	      << argv[0] << " act generate" << std::endl
-  	      << argv[0] << " act run | ./" << ACT_VIEW_FILE << std::endl
+  	      << argv[0] << " act run | python3 " << ACT_VIEW_FILE << std::endl
   	      << argv[0] << " wgt generate" << std::endl 
-  	      << argv[0] << " wgt run | ./" << WGT_VIEW_FILE << std::endl;
+  	      << argv[0] << " wgt run | python3 " << WGT_VIEW_FILE << std::endl;
     return 0;
   }
 
   bool generate_mode = std::string(argv[2])=="generate";
   bool act_mode = std::string(argv[1])=="act";
 
-  std::srand(std::time(0));
 
 
   // The state of the simulation
 
-  State state;
+  State state(gen);
   std::deque<Pos> trace; // history trace.
 
   // Plotting
@@ -366,7 +381,7 @@ int main(int argc, char* argv[]) {
     ysize = 6.0; 
   }
 
-  auto display = ccmpl::layout(xsize, ysize, layout);
+  auto display = ccmpl::layout(xsize, ysize, layout, ccmpl::RGB(1., 1., 1.));
   if(act_mode) {
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder); 
     display()         = ccmpl::show_tics(false,false);
@@ -441,7 +456,7 @@ int main(int argc, char* argv[]) {
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Position to Color";  
-    display()        += ccmpl::palette("",                    fill_cod                                     );
+    display()        += ccmpl::palette("",                    std::bind(fill_cod<std::mt19937>, _1, std::ref(gen)));
   }
 
   if(generate_mode) {
@@ -523,7 +538,7 @@ int main(int argc, char* argv[]) {
 
   // Running
 
-  state.load(DATA_FILE);
+  state.load(DATA_FILE, gen);
 
   unsigned int step = 0;
   unsigned int ustep = 0;

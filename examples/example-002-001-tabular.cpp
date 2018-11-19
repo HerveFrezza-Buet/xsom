@@ -56,16 +56,10 @@ double disk(const xsom::Point2D<double>& uv) {
 
 // Let us play with tabular functions.
 
-#define VIEW_FILE "viewer-002-001.py"
+#define VIEW_PREFIX "viewer-002-001"
 int main(int argc, char* argv[]) {
-  if(argc < 2) {
-    std::cout << "Usage : " << std::endl
-  	      << argv[0] << " generate" << std::endl
-  	      << argv[0] << " run | ./" << VIEW_FILE << std::endl;
-    return 0;
-  }
-
-  bool generate_mode = std::string(argv[1])=="generate";
+  
+  ccmpl::Main m(argc,argv,VIEW_PREFIX);
 
   auto display      = ccmpl::layout(20,10, {"####", "####"});
   std::string flags = "";
@@ -230,14 +224,9 @@ int main(int argc, char* argv[]) {
   display()        += ccmpl::dots("c='w',lw=1,s=40, zorder=1", fill_random_bmus);
   flags += "##";
 
+  // the ccmpl::Main object handles generation here
+  m.generate(display, false); // true means "use GUI"
 
-
-  
-  if(generate_mode) {
-    display.make_python(VIEW_FILE,false);
-    return 0;
-  }
-  
   std::cout << display(flags,"example-002-001.pdf", ccmpl::nofile())
   	    << ccmpl::stop;
   return 0;

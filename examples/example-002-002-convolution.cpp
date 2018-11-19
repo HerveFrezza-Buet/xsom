@@ -43,16 +43,10 @@ double f(const xsom::Point2D<double>& uv) {
 
 #define SIGMA (NB_U/30)
 
-#define VIEW_FILE "viewer-002-002.py"
+#define VIEW_PREFIX "viewer-002-002"
 int main(int argc, char* argv[]) {
-  if(argc < 2) {
-    std::cout << "Usage : " << std::endl
-  	      << argv[0] << " generate" << std::endl
-  	      << argv[0] << " run | ./" << VIEW_FILE << std::endl;
-    return 0;
-  }
-
-  bool generate_mode = std::string(argv[1])=="generate";
+  
+  ccmpl::Main m(argc,argv,VIEW_PREFIX);
 
   auto display      = ccmpl::layout(10,10, {"##", "##"});
   std::string flags = "";
@@ -73,7 +67,7 @@ int main(int argc, char* argv[]) {
   
   // The convolution offers the same functions as usual tabulars.
   
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1, 1}, {-1, 1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
   display().title   = "convolution";
   display().xtitle  = "u";
@@ -88,7 +82,7 @@ int main(int argc, char* argv[]) {
   flags += "#";
 
   display++;
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1, 1}, {-1, 1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
   display().title   = "no convolution";
   display().xtitle  = "u";
@@ -111,7 +105,7 @@ int main(int argc, char* argv[]) {
   
   
   display++;
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1, 1}, {-1, 1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
   display().title   = "convolution (masked)";
   display().xtitle  = "u";
@@ -126,7 +120,7 @@ int main(int argc, char* argv[]) {
   flags += "#";
 
   display++;
-  display()         = {-1, 1, -1, 1};
+  display()         = ccmpl::view2d({-1, 1}, {-1, 1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
   display().title   = "no convolution (masked)";
   display().xtitle  = "u";
@@ -137,11 +131,9 @@ int main(int argc, char* argv[]) {
   flags += '#';
 
 
-  
-  if(generate_mode) {
-    display.make_python(VIEW_FILE,false);
-    return 0;
-  }
+
+  // the ccmpl::Main object handles generation here
+  m.generate(display, false); // true means "use GUI"
   
   std::cout << display(flags,"example-002-002.pdf", ccmpl::nofile())
   	    << ccmpl::stop;

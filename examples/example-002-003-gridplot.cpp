@@ -22,25 +22,19 @@ xsom::Point2D<double> twirl(const xsom::Point2D<double>& p) {
 #define STEP 2
 
 
-#define VIEW_FILE "viewer-002-003.py"
+#define VIEW_PREFIX "viewer-002-003"
 int main(int argc, char* argv[]) {
-  if(argc < 2) {
-    std::cout << "Usage : " << std::endl
-  	      << argv[0] << " generate" << std::endl
-  	      << argv[0] << " run | ./" << VIEW_FILE << std::endl;
-    return 0;
-  }
+  
+  ccmpl::Main m(argc,argv,VIEW_PREFIX);
   
   
   auto mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {MAP_SIZE, MAP_SIZE});
   auto table   = xsom::tab2d::table<xsom::Point2D<double>>(mapping);
   table.learn(twirl);
-
-  bool generate_mode = std::string(argv[1])=="generate";
   
   auto display      = ccmpl::layout(10,10, {"#"});
 
-  display()         = {-1.1, 1.1, -1.1, 1.1};
+  display()         = ccmpl::view2d({-1.1, 1.1}, {-1.1, 1.1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(true, true);
   display().title   = "Grid plot";
   display()         = "equal";
@@ -51,10 +45,9 @@ int main(int argc, char* argv[]) {
   display()        += ccmpl::line("'g-', linewidth=7.0, zorder=1",
 				  std::bind(xsom::tab2d::fill_y, std::ref(table), 0.1, STEP, _1));
   
-  if(generate_mode) {
-    display.make_python(VIEW_FILE,false);
-    return 0;
-  }
+
+  // the ccmpl::Main object handles generation here
+  m.generate(display, false); // true means "use GUI"
   
   std::cout << display("###", "example-002-003.pdf", ccmpl::nofile())
   	    << ccmpl::stop;

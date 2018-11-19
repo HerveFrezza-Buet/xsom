@@ -28,8 +28,9 @@ int main(int argc, char* argv[]) {
   
   // Plot
   
-  auto display  = ccmpl::layout(5.0, 5.0, {"#"});
-  display()     = {-5, 5, -1, 1};   
+  auto display  = ccmpl::layout(5.0, 5.0, {"#"},
+				ccmpl::RGB(1., 1., 1.));
+  display()     = ccmpl::view2d({-5, 5}, {-1, 1}, ccmpl::aspect::fit, ccmpl::span::placeholder); 
   display()    += ccmpl::line("'b-'", std::bind(fill_data, _1, std::ref(current_time))); 
 
   m.generate(display,true);
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
   archi      += map;
 
   // Let us build a sequencer for synchronizing the computation
-  auto seq    = xsom::setup::sequencer(archi,display);
+  auto seq    = xsom::setup::sequencer(archi, display);
 
   // See the doxygen documentation of xsom::setup::Sequencer for an
   // exhaustive list of sequencer functionalities.

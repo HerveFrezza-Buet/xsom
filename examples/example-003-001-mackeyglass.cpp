@@ -1,5 +1,5 @@
 #include <iostream>
-#include <xsomInputs.hpp>
+#include <xsom-inputs.hpp>
 #include <fstream>
 
 int main(int argc, char* argv[]) {
