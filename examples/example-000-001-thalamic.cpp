@@ -3,7 +3,6 @@
 #include <array>
 #include <functional>
 #include <iostream>
-#include <cstdlib>
 #include <random>
 #include <ctime>
 #include <algorithm>
@@ -22,24 +21,24 @@ using namespace std::placeholders;
 #define T_MATCH_SIGMA_2 ((T_MATCH_SIGMA)*(T_MATCH_SIGMA))
 
 
-// The map is 1D, so unit positions are scalar. Here, it is a double (in [0, 500]).
-typedef double                       Pos;
+// The map is 1D, so unit positions are scalar. Here, it is a double (in [0, 50]).
+typedef double                        Pos;
 
-// The inputs will be 22 points in [0,1]^2
-typedef xsom::Point2D<double>        Input;
+// The inputs will be points in [0,1]^2
+typedef xsom::Point2D<double>         Input;
 
 // The prototypes (thalamic weights) are identical to inputs. So the
 // type of prototypes is the same as the type of inputs.
-typedef Input                        TWeight;
+typedef Input                         TWeight;
 
 // The map activities are scalars. Here, an activity is a double.
-typedef double                       Act;
+typedef double                        Act;
 
 // An activity distribution over the map is an array of activities.
-typedef std::array<Act,MAP_SIZE>     Acts;
+typedef std::array<Act, MAP_SIZE>     Acts;
 
 // The prototypes of the map is an array of weights.
-typedef std::array<TWeight,MAP_SIZE> TWeights;
+typedef std::array<TWeight, MAP_SIZE> TWeights;
 
 // This compute the squared euclidian distance ofr any type X which
 // supports - and *.
@@ -91,8 +90,6 @@ double m_dist(const Pos& w1,const Pos& w2) {
 // depend on the position of the considered weight in the map
 // (local). This is not the case here.
 double t_match(const Pos& local, const TWeight& w, const Input& x) {
-  // local is not used since the matching rule do not depend on the
-  // position of the unit where it is applied.
   return xsom::gaussian(w,x,T_MATCH_SIGMA_2,t_dist);
 }
 
@@ -111,7 +108,7 @@ void set_act(Acts& act,
     *(a++) = activity_at(idx2pos(i));
 }
 
-// This is similat to set_act for weights.
+// This is similar to set_act for weights.
 void set_tweight(TWeights& wgt,
 		 std::function<TWeight (const Pos&)> weight_at) {
   auto a = wgt.begin();
@@ -150,7 +147,7 @@ void update_output(Pos& out, const Pos& request) {
 
 // The following are ccmpl graphics filling functions.
 
-// This shows the BMU position in the activity distribution visualization.
+// This shows the output (BMU) position in the activity distribution visualization.
 void fill_bar(const Pos& p, double& bar) {
   bar = p;
 }
@@ -175,6 +172,7 @@ void fill_wgt(const TWeights& tab, std::vector<ccmpl::Point>& curve) {
     curve.push_back({v.x,v.y});
 }
 
+// This displays the activity distribution.
 void fill_act(const Acts& tab, std::vector<ccmpl::Point>& curve) {
   curve.clear();
   unsigned int i=0;
@@ -204,24 +202,19 @@ int main(int argc, char* argv[]) {
 
   // Next is the plotting.
   
-  // The layout string arguments represent with a # the position of
-  // the two graphs within a grid, line by line.
   auto display = ccmpl::layout(5.0, 5.0,
 			       {"#-","-#"},
 			       ccmpl::RGB(1., 1., 1.));
-
-  // We set the ratios width_ratios and height_ratios of gridspec. 
-  // This function call is optional
   display.set_ratios({1., 1.}, {1., 1.});
 
-  // Let us detail the first graph. Default limits are x=[0,1], y=[0,1]
   display().title   = "Kohonen SOM";
   display()         = ccmpl::view2d({0., 1.}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder); 
   display()        += ccmpl::line("'b-'", std::bind(fill_wgt,            std::ref(tw),                _1));
   display()        += ccmpl::dot ("c='r',lw=1,s=20", std::bind(fill_win, std::ref(win), std::ref(tw), _1));
   display()        += ccmpl::dot ("c='r',lw=1,s=20", std::bind(fill_in,  std::ref(xi),                _1));
 
-  display++; // Skip to next graph.
+  display++;
+  
   display()         = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder); 
   display().title   = "Map activity";
   display()        += ccmpl::line("'b-'", std::bind(fill_act, std::ref(ta),  _1));
