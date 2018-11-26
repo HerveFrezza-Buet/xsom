@@ -6,9 +6,9 @@
 #include <functional>
 #include <iostream>
 #include <fstream>
-#include <cstdlib>
 #include <random>
 #include <cmath>
+#include <algorithm>
 
 #include <ccmpl.hpp>
 
@@ -45,7 +45,7 @@ double euclidian(const X& x1,const X& x2) {
 
 template<typename RANDOM_DEVICE>
 Pos random_pos(RANDOM_DEVICE& rd) {
-    auto d = std::uniform_real_distribution<double>(-1, 1);
+  auto d = std::uniform_real_distribution<double>(-1, 1);
   Pos p;
   do {
     p.x = d(rd);
@@ -56,8 +56,10 @@ Pos random_pos(RANDOM_DEVICE& rd) {
 }
 
 
-// Let us define a Layer as a set of 2D positions, tossed randomly in a
-// 1-radius disk. Maps are made of a stack of such layers.
+// Let us define a Layer as a set of 2D positions, tossed randomly in
+// a 1-radius disk. Maps are made of a stack of such layers. There are
+// more efficient containers avaiable in xsom, we use this home made
+// one as a tutorial.
 template<typename CONTENT>
 class Layer {
 public:
@@ -67,17 +69,8 @@ public:
 private:
 
   const element_type& locate(const Pos& pos) const {
-    // This is unrealistically time consuming....
-    auto it     = data.begin();
-    auto _it    = data.begin();
-    double dmin = euclidian(pos,it->first);
-    double d;
-    for(++it; it != data.end(); ++it)
-      if((d = euclidian(pos,it->first)) < dmin) {
-	dmin =  d;
-	_it = it;
-      }
-    return *_it;
+    return *(std::min_element(data.begin(), data.end(),
+			      [&pos](const element_type& e) {return euclidian(pos, e.first);}));
   }
 
 public:
@@ -88,20 +81,14 @@ public:
   }
 
   CONTENT operator()(const Pos& pos) const {
-    return locate(pos).second;
+    // quite unefficient....
+    return std::min_element(data.begin(), data.end(),
+			    [&pos](const element_type& e1, const element_type& e2) {return euclidian(pos, e1.first) < euclidian(pos, e2.first);})->second;
   }
 
   Pos bmu() const {
-    auto it    = data.begin();
-    Pos res    = it->first;
-    double max = it->second;
-    double m;
-    for(++it; it != data.end(); ++it)
-      if((m = it->second) > max) {
-    	max =  m;
-    	res  = it->first;
-      }
-    return res;
+    auto maxit = std::max_element(data.begin(), data.end(), [](const element_type& e1, const element_type& e2) {return e1.second < e2.second;});
+    return maxit->first;
   }
 };
   
@@ -112,26 +99,26 @@ typedef Layer<TWeight>         TWeights;
 
 std::ostream& operator<<(std::ostream& os, const CWeights& l) {
   for(auto& e : l.data)
-    os << e.first.x << ' ' << e.first.y << ' ' << e.second.x << e.second.y << std::endl;
+    os << e.first << ' ' << e.second << std::endl;
   return os;
 }
 
 std::istream& operator>>(std::istream& is, CWeights& l) {
   for(auto& e : l.data) 
-    is >> e.first.x >> e.first.y >> e.second.x >> e.second.y;
+    is >> e.first >> e.second;
   return is;
 }
 
 
 std::ostream& operator<<(std::ostream& os, const TWeights& l) {
   for(auto& e : l.data)
-    os << e.first.x << ' ' << e.first.y << ' ' << e.second << std::endl;
+    os << e.first << ' ' << e.second << std::endl;
   return os;
 }
 
 std::istream& operator>>(std::istream& is, TWeights& l) {
   for(auto& e : l.data)
-    is >> e.first.x >> e.first.y >> e.second;
+    is >> e.first >> e.second;
   return is;
 }
 
@@ -140,23 +127,24 @@ std::istream& operator>>(std::istream& is, TWeights& l) {
 class State {
 public:
 
+  // First map (thalamic inputs are scalar).
+  Input       x;    // The current input
+  Pos         win;  // The winning position
   Acts        ta;   // thalamic matching
   TWeights    tw;   // thalamic weights
   Acts        ca;   // cortical matching
   CWeights    cw;   // cortical weights
   Acts        ma;   // map activities
 
-
+  // Second map (_ suffix, thalapic inputs are positions in the first map).
+  Pos         x_;   // The current input (a position)
+  Pos         win_; // The winning position
   Acts        ta_;  // thalamic matching
   CWeights    tw_;  // thalamic weights (positions)
   Acts        ca_;  // cortical matching
   CWeights    cw_;  // cortical weights
   Acts        ma_;  // map activities
 
-  Input       x;    // The current input
-  Pos         x_;   // The current input (a position)
-  Pos         win;  // The winning position
-  Pos         win_; // The winning position
 
   template<typename RANDOM_DEVICE>
   State(RANDOM_DEVICE& rd)
@@ -183,31 +171,26 @@ public:
     x  = o;
     x_ = win; // The input of map_ is the previous map position.
   }
-
+  
   template<typename RANDOM_DEVICE>
   void load(std::string filename, RANDOM_DEVICE& rd) {
-    std::ifstream file;
+    std::ifstream file(filename.c_str());
     clear(rd);
-    file.open(filename.c_str());
-    if(!file) {}
-    else {
+    if(file)
       file >> tw >> cw >> tw_ >> cw_;
-      file.close();
-    }
   }
   
   void save(std::string filename) const {
-    std::ofstream file;
-    file.open(filename.c_str());
-    file << tw  << std::endl
-	 << cw  << std::endl
-	 << tw_ << std::endl
-	 << cw_ << std::endl;
-    file.close();
+    std::ofstream file(filename.c_str());
+    if(file)
+      file << tw  << std::endl
+	   << cw  << std::endl
+	   << tw_ << std::endl
+	   << cw_ << std::endl;
   }
   
 };
-
+  
 // Let us define an object providing a sequence of inputs in
 // [0,1]. The sequence is periodical, and a noise can be added. Values
 // are represented bu letters, A for 0, F for 1.
@@ -237,6 +220,9 @@ public:
   }
 };
 
+  
+// Next is the usual methods (see previous examples).
+
 double t_dist(const TWeight& w,const Input& xi) {
   return euclidian(w,xi);
 }
@@ -250,14 +236,10 @@ double m_dist(const Pos& w1,const Pos& w2) {
 }
 
 double t_match(const Pos& local, const TWeight& w, const Input& x) {
-  // local is not used since the matching rule do not depend on the
-  // position of the unit where it is applied.
   return xsom::gaussian(w,x,T_MATCH_SIGMA_2,t_dist);
 }
 
 double c_match(const Pos& local, const CWeight& w, const Pos& p) {
-  // local is not used since the matching rule do not depend on the
-  // position of the unit where it is applied.
   return xsom::gaussian(w,p,C_MATCH_SIGMA_2,c_dist);
 }
 
@@ -298,7 +280,7 @@ void update_output(Pos& out,const Pos& request) {
   out += (request-out)*ALPHA_OUT;
 }
 
-// Data transfer to plotting structures.
+// The following are ccmpl graphics filling functions.
 
 void fill_srf(const Layer<double>& l, std::vector<ccmpl::ValueAt>& points) {
   points.clear();
@@ -310,8 +292,8 @@ void fill_pal(const Layer<CWeight>& l, std::vector<ccmpl::ColorAt>& points) {
   for(auto& e : l.data) 
     points.push_back({e.first.x,e.first.y,
 	  ccmpl::color::from_point(e.second,
-				  -1.0,1.0,
-				  -1.0,1.0)});
+				   -1.0,1.0,
+				   -1.0,1.0)});
 }
 
 void fill_dot(const Pos& p, ccmpl::Point& pt) {
@@ -332,8 +314,8 @@ void fill_cod(std::vector<ccmpl::ColorAt>& points, RANDOM_DEVICE& rd) {
     Pos s = random_pos(rd);
     points.push_back({s.x,s.y,
 	  ccmpl::color::from_point(s,
-				  -1.0,1.0,
-				  -1.0,1.0)});
+				   -1.0,1.0,
+				   -1.0,1.0)});
   }
 }
 
@@ -354,10 +336,12 @@ int main(int argc, char* argv[]) {
   
   if(argc != 3) {
     std::cout << "Usage : " << std::endl
-  	      << argv[0] << " act generate" << std::endl
-  	      << argv[0] << " act run | python3 " << ACT_VIEW_FILE << std::endl
-  	      << argv[0] << " wgt generate" << std::endl 
-  	      << argv[0] << " wgt run | python3 " << WGT_VIEW_FILE << std::endl;
+	      << argv[0] << " wgt generate" << std::endl 
+	      << argv[0] << " wgt run | python3 " << WGT_VIEW_FILE << std::endl
+	      << argv[0] << " act generate" << std::endl
+	      << argv[0] << " act run | python3 " << ACT_VIEW_FILE << std::endl
+	      << std::endl
+	      << "Start in wgt mode to run some steps fast, then investigate the activities with the act mode." << std::endl;
     return 0;
   }
 
@@ -387,76 +371,76 @@ int main(int argc, char* argv[]) {
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Input map";
     display().xtitle  = "thalamic activity";
-    display()        += ccmpl::surface("cmap='jet'",  0, 1,   std::bind(fill_srf, std::ref(state.ta),   _1));
-    display()        += ccmpl::dot    ("c='w',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win),  _1));
+    display()        += ccmpl::surface("cmap='gray'",  0, 1, std::bind(fill_srf, std::ref(state.ta),   _1));
+    display()        += ccmpl::dot    ("c='b',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win),  _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder); 
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Input map";
     display().xtitle  = "cortical activity";
-    display()        += ccmpl::surface("cmap='jet'",  0, 1,   std::bind(fill_srf, std::ref(state.ca),   _1));
-    display()        += ccmpl::dot    ("c='k',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win_), _1));
-    display()        += ccmpl::dot    ("c='w',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win),  _1));
+    display()        += ccmpl::surface("cmap='gray'",  0, 1, std::bind(fill_srf, std::ref(state.ca),   _1));
+    display()        += ccmpl::dot    ("c='r',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win_), _1));
+    display()        += ccmpl::dot    ("c='b',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win),  _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder); 
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Input map";
     display().xtitle  = "map activity";
-    display()        += ccmpl::surface("cmap='jet'",  0, 1,   std::bind(fill_srf, std::ref(state.ma),   _1));
-    display()        += ccmpl::dot    ("c='w',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win),  _1));
+    display()        += ccmpl::surface("cmap='gray'",  0, 1, std::bind(fill_srf, std::ref(state.ma),   _1));
+    display()        += ccmpl::dot    ("c='b',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win),  _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Recurrent map";
     display().xtitle  = "thalamic activity";
-    display()        += ccmpl::surface("cmap='jet'",  0, 1,   std::bind(fill_srf, std::ref(state.ta_),  _1));
-    display()        += ccmpl::dot    ("c='w',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win_), _1));
+    display()        += ccmpl::surface("cmap='gray'",  0, 1, std::bind(fill_srf, std::ref(state.ta_),  _1));
+    display()        += ccmpl::dot    ("c='b',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win_), _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Recurrent map";
     display().xtitle  = "cortical activity";
-    display()        += ccmpl::surface("cmap='jet'",  0, 1,   std::bind(fill_srf, std::ref(state.ca_),  _1));
-    display()        += ccmpl::dot    ("c='k',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win),  _1));
-    display()        += ccmpl::dot    ("c='w',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win_), _1));
+    display()        += ccmpl::surface("cmap='gray'",  0, 1, std::bind(fill_srf, std::ref(state.ca_),  _1));
+    display()        += ccmpl::dot    ("c='r',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win),  _1));
+    display()        += ccmpl::dot    ("c='b',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win_), _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Recurrent map";
     display().xtitle  = "map activity";
-    display()        += ccmpl::surface("cmap='jet'",  0, 1,   std::bind(fill_srf, std::ref(state.ma_),  _1));
-    display()        += ccmpl::dot    ("c='w',lw=1,s=20",     std::bind(fill_dot, std::ref(state.win_), _1));
+    display()        += ccmpl::surface("cmap='gray'",  0, 1, std::bind(fill_srf, std::ref(state.ma_),  _1));
+    display()        += ccmpl::dot    ("c='b',lw=1,s=20",    std::bind(fill_dot, std::ref(state.win_), _1));
   } 
   else {
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Input map";
     display().xtitle  = "thalamic weight";
-    display()        += ccmpl::surface("cmap='binary'", 0, 1, std::bind(fill_srf, std::ref(state.tw), _1));
-    display()        += ccmpl::line   ("'ro-'",               std::bind(fill_trc, std::ref(trace),    _1));
+    display()        += ccmpl::surface("cmap='gray'", 0, 1, std::bind(fill_srf, std::ref(state.tw), _1));
+    display()        += ccmpl::line   ("'ro-'",             std::bind(fill_trc, std::ref(trace),    _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Input map";
     display().xtitle  = "cortical weight";
-    display()        += ccmpl::palette("",                    std::bind(fill_pal, std::ref(state.cw),   _1));
+    display()        += ccmpl::palette("",                  std::bind(fill_pal, std::ref(state.cw),   _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Cortical map";
     display().xtitle  = "thalamic weight";
-    display()        += ccmpl::palette("",                    std::bind(fill_pal, std::ref(state.tw_),  _1));
+    display()        += ccmpl::palette("",                  std::bind(fill_pal, std::ref(state.tw_),  _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Cortical map";
     display().xtitle  = "cortical weight";
-    display()        += ccmpl::palette("",                    std::bind(fill_pal, std::ref(state.cw_),  _1));
+    display()        += ccmpl::palette("",                  std::bind(fill_pal, std::ref(state.cw_),  _1));
     display++;
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder);
     display()         = ccmpl::show_tics(false,false);
     display().title   = "Position to Color";  
-    display()        += ccmpl::palette("",                    std::bind(fill_cod<std::mt19937>, _1, std::ref(gen)));
+    display()        += ccmpl::palette("",                  std::bind(fill_cod<std::mt19937>, _1, std::ref(gen)));
   }
 
   if(generate_mode) {
@@ -473,57 +457,57 @@ int main(int argc, char* argv[]) {
 
   auto tl 
     = xsom::layer<TWeight,
-  		  Pos>(ALPHA,
-  		       state.x,
-  		       t_match,
-  		       std::bind(h,           std::ref(state.win), _1),
-  		       std::bind(get_tweight, std::ref(state.tw),  _1),
-  		       std::bind(set_act,     std::ref(state.ta),  _1),
-  		       std::bind(set_tweight, std::ref(state.tw),  _1));
+		  Pos>(ALPHA,
+		       state.x,
+		       t_match,
+		       std::bind(h,           std::ref(state.win), _1),
+		       std::bind(get_tweight, std::ref(state.tw),  _1),
+		       std::bind(set_act,     std::ref(state.ta),  _1),
+		       std::bind(set_tweight, std::ref(state.tw),  _1));
 
   auto cl 
     = xsom::layer<CWeight,
-  		  Pos>(ALPHA,
-  		       state.win_,
-  		       c_match,
-  		       std::bind(h,           std::ref(state.win), _1),
-  		       std::bind(get_cweight, std::ref(state.cw),  _1),
-  		       std::bind(set_act,     std::ref(state.ca),  _1),
-  		       std::bind(set_cweight, std::ref(state.cw),  _1));
+		  Pos>(ALPHA,
+		       state.win_,
+		       c_match,
+		       std::bind(h,           std::ref(state.win), _1),
+		       std::bind(get_cweight, std::ref(state.cw),  _1),
+		       std::bind(set_act,     std::ref(state.ca),  _1),
+		       std::bind(set_cweight, std::ref(state.cw),  _1));
 
   auto map 
     = xsom::map(state.win,
-  		std::bind(set_act,    std::ref(state.ma),                     _1),
-  		std::bind(merge,      std::ref(state.ta), std::ref(state.ca), _1),
-  		std::bind(&Acts::bmu, std::ref(state.ma)                        ),
-  		update_output);
+		std::bind(set_act,    std::ref(state.ma),                     _1),
+		std::bind(merge,      std::ref(state.ta), std::ref(state.ca), _1),
+		std::bind(&Acts::bmu, std::ref(state.ma)                        ),
+		update_output);
 
   auto tl_ 
     = xsom::layer<CWeight,
-  		  Pos>(ALPHA,
-  		       state.x_,
-  		       c_match,
-  		       std::bind(h,           std::ref(state.win_), _1),
-  		       std::bind(get_cweight, std::ref(state.tw_),  _1),
-  		       std::bind(set_act,     std::ref(state.ta_),  _1),
-  		       std::bind(set_cweight, std::ref(state.tw_),  _1));
+		  Pos>(ALPHA,
+		       state.x_,
+		       c_match,
+		       std::bind(h,           std::ref(state.win_), _1),
+		       std::bind(get_cweight, std::ref(state.tw_),  _1),
+		       std::bind(set_act,     std::ref(state.ta_),  _1),
+		       std::bind(set_cweight, std::ref(state.tw_),  _1));
 
   auto cl_ 
     = xsom::layer<CWeight,
-  		  Pos>(ALPHA,
-  		       state.win,
-  		       c_match,
-  		       std::bind(h,           std::ref(state.win_),_1),
-  		       std::bind(get_cweight, std::ref(state.cw_) ,_1),
-  		       std::bind(set_act,     std::ref(state.ca_) ,_1),
-  		       std::bind(set_cweight, std::ref(state.cw_) ,_1));
+		  Pos>(ALPHA,
+		       state.win,
+		       c_match,
+		       std::bind(h,           std::ref(state.win_),_1),
+		       std::bind(get_cweight, std::ref(state.cw_) ,_1),
+		       std::bind(set_act,     std::ref(state.ca_) ,_1),
+		       std::bind(set_cweight, std::ref(state.cw_) ,_1));
 
   auto map_ 
     = xsom::map(state.win_,
-  		std::bind(set_act,    std::ref(state.ma_),                      _1),
-  		std::bind(merge,      std::ref(state.ta_), std::ref(state.ca_), _1),
-  		std::bind(&Acts::bmu, std::ref(state.ma_)                         ),
-  		update_output);
+		std::bind(set_act,    std::ref(state.ma_),                      _1),
+		std::bind(merge,      std::ref(state.ta_), std::ref(state.ca_), _1),
+		std::bind(&Acts::bmu, std::ref(state.ma_)                         ),
+		update_output);
 
   auto archi = xsom::setup::network();
   
