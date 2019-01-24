@@ -21,6 +21,7 @@
  * @example example-002-001-tabular.cpp
  * @example example-002-002-convolution.cpp
  * @example example-002-003-gridplot.cpp
+ * @example example-002-004-recsom1D.cpp
  *
  * @example example-003-001-mackeyglass.cpp
  */ 

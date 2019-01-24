@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iterator>
 #include <cmath>
+#include <random>
 
 #include <xsom.hpp>
 #include <ccmpl.hpp>
@@ -58,6 +59,10 @@ double disk(const xsom::Point2D<double>& uv) {
 
 #define VIEW_PREFIX "viewer-002-001"
 int main(int argc, char* argv[]) {
+  
+  // random seed initialization
+  std::random_device rd;
+  std::mt19937 gen(rd());
   
   ccmpl::Main m(argc,argv,VIEW_PREFIX);
 
@@ -132,7 +137,7 @@ int main(int argc, char* argv[]) {
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
-  display()        += ccmpl::palette("", [&tabular_torus](std::vector<ccmpl::ColorAt>& points) {tabular_torus.fill_palette(color_of_3d, NB_TRIANGULATION_POINTS, points);});
+  display()        += ccmpl::palette("", [&tabular_torus, &gen](std::vector<ccmpl::ColorAt>& points) {tabular_torus.fill_palette(color_of_3d, NB_TRIANGULATION_POINTS, gen, points);});
   flags += '#';
 
   display++;
@@ -142,7 +147,7 @@ int main(int argc, char* argv[]) {
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
-  display()        += ccmpl::surface("cmap='jet'", 0, 1, [&tabular_torus](std::vector<ccmpl::ValueAt>& points) {tabular_torus.fill_surface(value_of_3d, NB_TRIANGULATION_POINTS, points);});
+  display()        += ccmpl::surface("cmap='jet'", 0, 1, [&tabular_torus, &gen](std::vector<ccmpl::ValueAt>& points) {tabular_torus.fill_surface(value_of_3d, NB_TRIANGULATION_POINTS, gen, points);});
   flags += '#';
 
   // Let us now consider the more specific but more usual usual case
@@ -175,7 +180,7 @@ int main(int argc, char* argv[]) {
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
-  display()        +=  ccmpl::surface("cmap='jet'", -1, 1, std::bind(&xsom::tab2d::Table<double>::fill_surface, std::ref(tabular_gabor), NB_TRIANGULATION_POINTS, _1));
+  display()        +=  ccmpl::surface("cmap='jet'", -1, 1, [&tabular_gabor, &gen](std::vector<ccmpl::ValueAt>& points) {tabular_gabor.fill_surface(NB_TRIANGULATION_POINTS, gen, points);});
   flags += '#';
 
 
@@ -205,11 +210,11 @@ int main(int argc, char* argv[]) {
   auto tabular_disk = xsom::tab2d::table<double>(disk_mapping);
   tabular_disk.learn(disk);
 
-  auto fill_random_bmus = [&tabular_disk](std::vector<ccmpl::Point>& dots) {
+  auto fill_random_bmus = [&tabular_disk, &gen](std::vector<ccmpl::Point>& dots) {
     dots.clear();
     auto out = std::back_inserter(dots);
     for(unsigned int i = 0; i < 10; ++i)
-      *(out++) = tabular_disk.random_bmu(); // The recomputes all from scratch at each call.
+      *(out++) = tabular_disk.random_bmu(gen); // The recomputes all from scratch at each call.
   };
 
   display++;

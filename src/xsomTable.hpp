@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iterator>
 #include <functional>
+#include <random>
 
 #include <ccmpl.hpp>
 #include <xsomPoint.hpp>
@@ -129,7 +130,8 @@ namespace xsom {
       /**
        * Thus function selects randomly among the best matching units (there may be several ones).
        */
-      typename MAPPING::position_type random_bmu() const {
+      template<typename RANDOM_DEVICE>
+      typename MAPPING::position_type random_bmu(RANDOM_DEVICE& rd) const {
 	unsigned int length                                   = mapping.length;
 	auto c                                                = content.begin();
 	std::vector<typename MAPPING::position_type> best_pos;
@@ -179,7 +181,7 @@ namespace xsom {
 	  }
 	}
 
-	return best_pos[random::uniform(best_pos.size())];
+	return best_pos[std::uniform_int_distribution<std::size_t>(0,best_pos.size()-1)(rd)];
       }
       
       void write(std::ostream& os) const {
@@ -278,8 +280,9 @@ namespace xsom {
 	return this->xsom::tab::Table<CONTENT,Mapping>::bmu();
       }
       
-      double random_bmu() const {
-	return this->xsom::tab::Table<CONTENT,Mapping>::random_bmu();
+      template<typename RANDOM_DEVICE>
+      double random_bmu(RANDOM_DEVICE& rd) const {
+	return this->xsom::tab::Table<CONTENT,Mapping>::random_bmu(rd);
       }
       
       template<typename ValueOf>
@@ -317,8 +320,9 @@ namespace xsom {
 	return this->xsom::tab::Table<double,Mapping>::bmu();
       }
       
-      double random_bmu() const {
-	return this->xsom::tab::Table<double,Mapping>::random_bmu();
+      template<typename RANDOM_DEVICE>
+      double random_bmu(RANDOM_DEVICE& rd) const {
+	return this->xsom::tab::Table<double,Mapping>::random_bmu(rd);
       }
       
       void fill_line(std::vector<ccmpl::Point>& points) const {
@@ -414,9 +418,10 @@ namespace xsom {
 	: xsom::tab::Table<CONTENT,Mapping>(m,fct_pos_is_valid),
 	delaunay() {}
       
-      template<typename ColorOf>
+      template<typename ColorOf, typename RANDOM_DEVICE>
       void fill_palette(const ColorOf& ccmplcolor_of_content,
 			unsigned int nb_triangulation_points,
+			RANDOM_DEVICE& rd,
 			std::vector<ccmpl::ColorAt>& points) const {
 	
 	if(nb_triangulation_points != this->delaunay.size()) {
@@ -428,7 +433,7 @@ namespace xsom {
 	  unsigned int nb=0;
 	  if(this->use_validation_mask)
 	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::random::index2d(width, height);
+	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
 	      if(this->pos_is_valid(pos)) {
 		*(out++) = {this->mapping.index2rank(idx),pos};
@@ -437,7 +442,7 @@ namespace xsom {
 	    }
 	  else
 	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::random::index2d(width, height);
+	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
 	      *(out++) = {this->mapping.index2rank(idx),pos};
 	      ++nb;
@@ -516,16 +521,19 @@ namespace xsom {
 	return this->xsom::tab::Table<CONTENT,Mapping>::bmu();
       }
       
-      xsom::Point2D<double> random_bmu() const {
-	return this->xsom::tab::Table<CONTENT,Mapping>::random_bmu();
+      template<typename RANDOM_DEVICE>
+      xsom::Point2D<double> random_bmu(RANDOM_DEVICE& rd) const {
+	return this->xsom::tab::Table<CONTENT,Mapping>::random_bmu(rd);
       }
       
-      template<typename ColorOf>
+      template<typename ColorOf, typename RANDOM_DEVICE>
       void fill_palette(const ColorOf& ccmplcolor_of_content,
 			unsigned int nb_triangulation_points,
+			RANDOM_DEVICE& rd,
 			std::vector<ccmpl::ColorAt>& points) const {
 	this->Table_<CONTENT>::fill_palette(ccmplcolor_of_content,
 					    nb_triangulation_points,
+					    rd,
 					    points);
       }
       
@@ -539,9 +547,10 @@ namespace xsom {
       }
 
       
-      template<typename ValueOf>
+      template<typename ValueOf, typename RANDOM_DEVICE>
       void fill_surface(const ValueOf& value_of_content,
 			unsigned int nb_triangulation_points,
+			RANDOM_DEVICE& rd,
 			std::vector<ccmpl::ValueAt>& points) const {
 	
 	if(nb_triangulation_points != this->delaunay.size()) {
@@ -553,7 +562,7 @@ namespace xsom {
 	  unsigned int nb=0;
 	  if(this->use_validation_mask)
 	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::random::index2d(width, height);
+	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
 	      if(this->pos_is_valid(pos)) {
 		*(out++) = {this->mapping.index2rank(idx),pos};
@@ -562,7 +571,7 @@ namespace xsom {
 	    }
 	  else
 	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::random::index2d(width, height);
+	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
 	      *(out++) = {this->mapping.index2rank(idx),pos};
 	      ++nb;
@@ -630,17 +639,20 @@ namespace xsom {
 	return this->xsom::tab::Table<double,Mapping>::bmu();
       }
       
-      xsom::Point2D<double> random_bmu() const {
-	return this->xsom::tab::Table<double,Mapping>::random_bmu();
+      template<typename RANDOM_DEVICE>
+      xsom::Point2D<double> random_bmu(RANDOM_DEVICE& rd) const {
+	return this->xsom::tab::Table<double,Mapping>::random_bmu(rd);
       }
       
-      template<typename ColorOf>
+      template<typename ColorOf, typename RANDOM_DEVICE>
       void fill_palette(const ColorOf& ccmplcolor_of_content,
 			unsigned int nb_triangulation_points,
+			RANDOM_DEVICE& rd,
 			std::vector<ccmpl::ColorAt>& points) const {
 	this->Table_<double>::fill_palette(ccmplcolor_of_content,
-					    nb_triangulation_points,
-					    points);
+					   nb_triangulation_points,
+					   rd,
+					   points);
       }
       
       template<typename ColorOf>
@@ -652,7 +664,9 @@ namespace xsom {
 					      width, depth);
       }
       
+      template<typename RANDOM_DEVICE>
       void fill_surface(unsigned int nb_triangulation_points,
+			RANDOM_DEVICE& rd,
 			std::vector<ccmpl::ValueAt>& points) const {
 	
 	if(nb_triangulation_points != this->delaunay.size()) {
@@ -664,7 +678,7 @@ namespace xsom {
 	  unsigned int nb=0;
 	  if(this->use_validation_mask)
 	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::random::index2d(width, height);
+	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
 	      if(this->pos_is_valid(pos)) {
 		*(out++) = {this->mapping.index2rank(idx),pos};
@@ -673,7 +687,7 @@ namespace xsom {
 	    }
 	  else
 	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::random::index2d(width, height);
+	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
 	      *(out++) = {this->mapping.index2rank(idx),pos};
 	      ++nb;

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
+#include <random>
 
 #include <ccmpl.hpp>
 #include <xsomUtility.hpp>
@@ -150,10 +151,9 @@ namespace xsom {
     return {w,h};
   }
 
-  namespace random {
-    inline Index2D index2d(unsigned int w,unsigned int h) {
-      
-      return {uniform(w),uniform(h)};
-    }
+  template<typename RANDOM_DEVICE>
+  Index2D index2d(unsigned int w, unsigned int h, RANDOM_DEVICE& rd) {
+    return {std::uniform_int_distribution<unsigned int>(0, w-1)(rd),
+	std::uniform_int_distribution<unsigned int>(0, h-1)(rd)};
   }
 }

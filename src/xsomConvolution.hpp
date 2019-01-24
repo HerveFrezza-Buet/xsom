@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <cmath>
+#include <random>
 
 #include <xsomTable.hpp>
 #include <xsomUtility.hpp>
@@ -390,7 +391,8 @@ namespace xsom {
 	}
 
 	
-	double random_bmu() const {
+	template<typename RANDOM_DEVICE>
+	double random_bmu(RANDOM_DEVICE& rd) const {
 	  convolution.convolve();
 	  
 	  unsigned int length            = this->mapping.length;
@@ -442,7 +444,7 @@ namespace xsom {
 	    }
 	  }
 
-	  return best_pos[random::uniform(best_pos.size())];
+	  return best_pos[std::uniform_int_distribution<std::size_t>(0, best_pos.size()-1)(rd)];
 	}
 	
 	
@@ -450,8 +452,9 @@ namespace xsom {
 	  return this->xsom::tab1d::Table<double>::bmu();
 	}
 	
-	double random_bmu_noconv() const {
-	  return this->xsom::tab1d::Table<double>::random_bmu();
+	template<typename RANDOM_DEVICE>
+	double random_bmu_noconv(RANDOM_DEVICE& rd) const {
+	  return this->xsom::tab1d::Table<double>::random_bmu(rd);
 	}
 
 	void fill_line(std::vector<ccmpl::Point>& points) const {
@@ -568,7 +571,8 @@ namespace xsom {
 	}
 
 
-	xsom::Point2D<double>  random_bmu() const {
+	template<typename RANDOM_DEVICE>
+	xsom::Point2D<double>  random_bmu(RANDOM_DEVICE& rd) const {
 	  convolution.convolve();
 	  
 	  unsigned int length                           = this->mapping.length;
@@ -620,7 +624,7 @@ namespace xsom {
 	    }
 	  }
 
-	  return best_pos[random::uniform(best_pos.size())];
+	  return best_pos[std::uniform_int_distribution<std::size_t>(0, best_pos.size()-1)(rd)];
 	}
 	
 	
@@ -629,12 +633,15 @@ namespace xsom {
 	}
 	
 	
-	xsom::Point2D<double> random_bmu_noconv() const {
-	  return this->xsom::tab2d::Table<double>::random_bmu();
+	template<typename RANDOM_DEVICE>
+	xsom::Point2D<double> random_bmu_noconv(RANDOM_DEVICE& rd) const {
+	  return this->xsom::tab2d::Table<double>::random_bmu(rd);
 	}
 
 	
+	template<typename RANDOM_DEVICE>
 	void fill_surface(unsigned int nb_triangulation_points,
+			  RANDOM_DEVICE& rd,
 			  std::vector<ccmpl::ValueAt>& points) const {
 	  if(nb_triangulation_points != this->delaunay.size()) {
 	    this->delaunay.clear();
@@ -644,7 +651,7 @@ namespace xsom {
 	    unsigned int height = this->mapping.size.h;
 	    unsigned int nb=0;
 	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::random::index2d(width, height);
+	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
 	      if(this->pos_is_valid(pos)) {
 		*(out++) = {this->mapping.index2rank(idx),pos};
@@ -658,9 +665,12 @@ namespace xsom {
 	    points.push_back({ip.second.x,ip.second.y,this->convolution.ws.dst[ip.first]});
 	}
 	
+
+	template<typename RANDOM_DEVICE>
 	void fill_surface_noconv(unsigned int nb_triangulation_points,
+				 RANDOM_DEVICE& rd,
 				 std::vector<ccmpl::ValueAt>& points) const {
-	  this->xsom::tab2d::Table<double>::fill_surface(nb_triangulation_points,points);
+	  this->xsom::tab2d::Table<double>::fill_surface(nb_triangulation_points,points,rd);
 	}
 
 	void fill_image_gray(std::vector<double>& x, std::vector<double>& y, std::vector<double>& z,
