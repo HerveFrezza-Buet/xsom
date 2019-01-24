@@ -12,18 +12,17 @@
 using namespace std::placeholders;
 
 #define MAP_SIZE 500
-#define T_MATCH_SIGMA .5
+#define T_MATCH_SIGMA .1
 #define C_MATCH_SIGMA .1
-#define ALPHA .1
+#define ALPHA .05
 #define H_RADIUS .1
-#define PERIOD 1
-#define SEQUENCE "ABCDEF"
+#define SEQUENCE "AAAFFFBCDE"
 #define BETA 0.5
 
 
 // For the upper layer convolution.
 #define KERNEL_TYPE xsom::tab::fft::KernelType::Gaussian  // We use a Gaussian convolution kernel
-#define SIGMA_CONV .05                                    // This is its standard deviation un Pos units.
+#define SIGMA_CONV .01                                    // This is its standard deviation un Pos units.
 #define GRID_SIGMA (SIGMA_CONV * MAP_SIZE)                // This is its standard deviation in table index units (since MAP_SIZE is mapped into [0,1]).
 
 // Other macros
@@ -86,7 +85,7 @@ double m_dist(const Pos& w1,const Pos& w2) {return euclidian(w1,w2);}
 
 // This computes the learning strenght (in [0,1]) to be applyed at
 // position p in the map, knowing that BMU position is winner.
-double h(const Pos& winner,const Pos& p) {return xsom::linear(p, winner, H_RADIUS, m_dist);}
+double h(const Pos& bmu,const Pos& p) {return xsom::linear(p, bmu, H_RADIUS, m_dist);}
 
 // This merges the "thalamic" and "cortical" matchings into a single
 // scalar.
@@ -103,13 +102,9 @@ void update_output(Pos& out, const Pos& request) {out = request;}
 
 class State{
 public:
-  Input       x   = 0;          // The current input
-  Pos         x_  = 0;          // The previous winner
-  Pos         win = 0;          // The winning position
-
-  // This is for display only
-  Pos         bmu_current  = 0; // The current BMU
-  Pos         bmu_previous = 0; // The previous BMU
+  Input       x     = 0;        // The current input
+  Pos         bmu_  = 0;        // The previous bmu
+  Pos         bmu   = 0;        // The bmu position
 
   xsom::tab1d::Mapping mapping; // converts positions to table index.
   
@@ -119,23 +114,25 @@ public:
   CWeights    cw;               // cortical weights
   Map         ma;               // map activities
   
-
-  State()
+  template<typename RANDOM_DEVICE>
+  State(RANDOM_DEVICE& rd)
     : mapping(0, 1, MAP_SIZE),
       ta(mapping),
       tw(mapping),
       ca(mapping),
       cw(mapping),
-      ma(mapping, GRID_SIGMA, KERNEL_TYPE) {}
+      ma(mapping, GRID_SIGMA, KERNEL_TYPE) {
+
+    // Random initialization.
+    auto uniform = std::uniform_real_distribution<double>(0.0, 1.0);
+    for(auto& c : tw.content) c = uniform(rd);
+    for(auto& c : cw.content) c = uniform(rd);
+  }
 
   void next(const Input& o) {
-    // This is for display.
-    bmu_previous = bmu_current;
-    bmu_current  = win;
-
     // This is for next step computation.
     x  = o;
-    x_ = win; // The input of map_ is the previous map position.
+    bmu_ = bmu; 
   }
 };
 
@@ -147,10 +144,20 @@ public:
 class InputSampler {
 private:
   std::string::iterator current;
+
+  void compute_display() {
+    display = seq;
+    for(auto& c : display) c += 32;
+    display[std::distance(seq.begin(), current)] -= 32;
+  }
+  
 public:
   std::string seq;
+  std::string display;
+  
   InputSampler(const std::string& sequence) : seq(sequence) {
     current = seq.begin();
+    compute_display();
   }
   double operator()() {
     double res;
@@ -165,11 +172,18 @@ public:
     }
     if(++current == seq.end())
       current = seq.begin();
+    
+    compute_display();
+    
     return res;
   }
 };
 
+
+// Plot functions
+
 void fill_bar(const double& value, double& bar_pos) {bar_pos = value;}
+void print_label(ccmpl::Point& pos, std::string& text, const std::string& label) {pos = ccmpl::Point(0.02, 0.9); text = label;}
 
 
 #define VIEWER_PREFIX "recurrent_SOM"
@@ -181,51 +195,67 @@ int main(int argc, char* argv[]) {
   std::random_device rd;
   std::mt19937 gen(rd());
   
-  State state;
+  State state(gen);
+  InputSampler sequence(SEQUENCE);
   
   ccmpl::Main m(argc, argv, VIEWER_PREFIX);
   
-  auto display = ccmpl::layout(10.0, 10.0,
+  auto display = ccmpl::layout(12.0, 8.0,
                                {">.",
 				"##",
-				"##"},
+				"##",
+			        ">."},
                                ccmpl::RGB(1., 1., 1.));
-  display.set_ratios({8., 8.},{1., 1., 1.});
+  display.set_ratios({10., 10.},{1., .5, .5, .5});
 
-  std::string tags = "";
-
+  std::string flags = "";
+  
   // Display global merge (raw and convoluated), and bars for bmu(t) and bmu(t-1) (dashed).
-  display()   = ccmpl::view2d({0., 1.}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k'",   std::bind(fill_bar, std::ref(state.bmu_previous), _1));                tags += "#";
-  display()  += ccmpl::vbar("'k--'", std::bind(fill_bar, std::ref(state.bmu_previous), _1));                tags += "#";
-  display()  += ccmpl::line("'b'",   std::bind(&Map::fill_line, std::ref(state.ma), _1));                   tags += "#";
-  display()  += ccmpl::line("'b--'", std::bind(&Map::fill_line_noconv, std::ref(state.ma), _1));            tags += "#";
+  display().title = "Merged output";
+  display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::vbar("'k'",   std::bind(fill_bar, std::ref(state.bmu), _1));                         flags += "#";
+  display()  += ccmpl::vbar("'k--'", std::bind(fill_bar, std::ref(state.bmu_), _1));                        flags += "#";
+  display()  += ccmpl::line("'b'",   std::bind(&Map::fill_line, std::ref(state.ma), _1));                   flags += "#";
+  display()  += ccmpl::line("'b--'", std::bind(&Map::fill_line_noconv, std::ref(state.ma), _1));            flags += "#";
+  display()  += ccmpl::text("",      std::bind(print_label, _1, _2, std::ref(sequence.display)));           flags += "#";
   display++;
 
   // Display thalamic matching and a bar for bmu(t).
-  display()   = ccmpl::view2d({0., 1.}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k'", std::bind(fill_bar, std::ref(state.bmu_current), _1));                   tags += "#";
-  display()  += ccmpl::line("'r'", std::bind(&Acts::fill_line, std::ref(state.ta), _1));                    tags += "#";
+  display().title = "Thalamic activity";
+  display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::vbar("'k'", std::bind(fill_bar, std::ref(state.bmu), _1));                           flags += "#";
+  display()  += ccmpl::line("'r'", std::bind(&Acts::fill_line, std::ref(state.ta), _1));                    flags += "#";
   display++;
 
   // Display cortical matching and a bar for bmu(t-1).
-  display()   = ccmpl::view2d({0., 1.}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k--'", std::bind(fill_bar, std::ref(state.bmu_previous), _1));                tags += "#";
-  display()  += ccmpl::line("'g'",   std::bind(&Acts::fill_line, std::ref(state.ca), _1));                  tags += "#";
+  display().title = "Cortical activity";
+  display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::vbar("'k--'", std::bind(fill_bar, std::ref(state.bmu_), _1));                        flags += "#";
+  display()  += ccmpl::line("'g'",   std::bind(&Acts::fill_line, std::ref(state.ca), _1));                  flags += "#";
   display++;
 
   // Display thalamic weights, a horizontal bar for the current input and a vertical bar for bmu(t).
-  display()   = ccmpl::view2d({0., 1.}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k'",              std::bind(fill_bar, std::ref(state.bmu_current), _1));      tags += "#";
-  display()  += ccmpl::line("'k'",              std::bind(&TWeights::fill_line, std::ref(state.tw), _1));   tags += "#";
-  display()  += ccmpl::hbar("'r', linewidth=3", std::bind(fill_bar, std::ref(state.x), _1));                tags += "#";
+  display().title  = "Thalamic weights";
+  display().ytitle = "observation";
+  display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::vbar("'k'",              std::bind(fill_bar, std::ref(state.bmu), _1));              flags += "#";
+  display()  += ccmpl::line("'k'",              std::bind(&TWeights::fill_line, std::ref(state.tw), _1));   flags += "#";
+  display()  += ccmpl::hbar("'r', linewidth=3", std::bind(fill_bar, std::ref(state.x), _1));                flags += "#";
   display++;
 
   // Display cortical weights, a horizontal bar for the current input (bmu(t-1)) and a vertical bar for bmu(t-1) as well.
-  display()   = ccmpl::view2d({0., 1.}, {0., 1.}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k--'",            std::bind(fill_bar, std::ref(state.bmu_previous), _1));     tags += "#";
-  display()  += ccmpl::line("'k'",              std::bind(&CWeights::fill_line, std::ref(state.cw), _1));   tags += "#";
-  display()  += ccmpl::hbar("'g', linewidth=3", std::bind(fill_bar, std::ref(state.x_), _1));               tags += "#";
+  display().title = "Cortical weights";
+  display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::vbar("'k--'",            std::bind(fill_bar, std::ref(state.bmu_), _1));             flags += "#";
+  display()  += ccmpl::line("'k'",              std::bind(&CWeights::fill_line, std::ref(state.cw), _1));   flags += "#";
+  display()  += ccmpl::hbar("'g', linewidth=3", std::bind(fill_bar, std::ref(state.bmu_), _1));             flags += "#";
+  display++;
+
+  // Display both weights.
+  display().title = "All weights";
+  display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::line("'r'",              std::bind(&TWeights::fill_line, std::ref(state.tw), _1));   flags += "#";
+  display()  += ccmpl::line("'g'",              std::bind(&TWeights::fill_line, std::ref(state.cw), _1));   flags += "#";
   
   // the ccmpl::Main object handles generation here.
   m.generate(display, true); // true means "use GUI".
@@ -233,20 +263,20 @@ int main(int argc, char* argv[]) {
   auto tl = xsom::layer<TWeight, Pos>(ALPHA,
 				      state.x,
 				      t_match,
-				      std::bind(h,                std::ref(state.win), _1),
+				      std::bind(h,                std::ref(state.bmu), _1),
 				      std::bind(&TWeights::get,   std::ref(state.tw),  _1),
 				      std::bind(&Acts::learn,     std::ref(state.ta),  _1),
 				      std::bind(&TWeights::learn, std::ref(state.tw),  _1));
 
   auto cl = xsom::layer<CWeight, Pos>(ALPHA,
-				      state.x_,
+				      state.bmu_,
 				      c_match,
-				      std::bind(h,                std::ref(state.win), _1),
+				      std::bind(h,                std::ref(state.bmu), _1),
 				      std::bind(&CWeights::get,   std::ref(state.cw),  _1),
 				      std::bind(&Acts::learn,     std::ref(state.ca),  _1),
 				      std::bind(&CWeights::learn, std::ref(state.cw),  _1));
 
-  auto map = xsom::map(state.win,
+  auto map = xsom::map(state.bmu,
 		       std::bind(&Map::learn,               std::ref(state.ma), _1),
 		       std::bind(merge, std::ref(state.ta), std::ref(state.ca), _1),
 		       [&ma = state.ma, &gen]() {return ma.random_bmu(gen);},
@@ -258,17 +288,42 @@ int main(int argc, char* argv[]) {
   map        += cl;                     // We add the "cortical" layer to the map.
   archi      += map;                    // We add the map to the architecture (one map here).
 
-  InputSampler sequence(SEQUENCE);
+  // Let us build a sequencer for synchronizing the computation
+  auto seq    = xsom::setup::sequencer(archi, display);
 
-  while(true) {
-    for(unsigned int i = 0; i < PERIOD; ++i) {
-      state.next(sequence());
-      archi.update(); // This computes all the matchings.
-      archi.learn();  // Then, weights are updated
-    }
-    std::cout << display(tags, ccmpl::nofile(), ccmpl::nofile());
-    
-  }
+  // See the doxygen documentation of xsom::setup::Sequencer for an
+  // exhaustive list of sequencer functionalities.
+
+
+  /* */ seq.__def("step");
+  /* */   seq.__step([&state, &sequence](){state.next(sequence());});
+  /* */   seq.__update_and_learn();
+  /* */ seq.__fed();
+  
+  /* */ seq.__def("step by step");
+  /* */   seq.__for(30);
+  /* */     seq.__call("step");
+  /* */     seq.__plot([&flags](){return flags;});
+  /* */   seq.__rof();
+  /* */ seq.__fed();
+
+  /* */ seq.__def("chunk");
+  /* */   seq.__for(10);
+  /* */     seq.__call("step");
+  /* */   seq.__rof();
+  /* */   seq.__plot([&flags](){return flags;});
+  /* */ seq.__fed();
+
+  /* */ seq.__loop();
+  /* */   seq.__call("step by step");
+  /* */   seq.__for(10);
+  /* */     seq.__call("chunk");
+  /* */   seq.__rof();
+  /* */ seq.__pool();
+
+  // Now we can run the simulation.
+  seq.run();
+  
   return 0;
 }
 
