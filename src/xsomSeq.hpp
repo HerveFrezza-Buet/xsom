@@ -112,6 +112,10 @@ namespace xsom {
     struct Done {
       Done() {}
     };
+    
+    struct Exit {
+      Exit() {}
+    };
 
     class Instruction {
     protected:
@@ -1054,6 +1058,7 @@ namespace xsom {
 	      main->next();
 	  }
 	  catch(xsom::instr::Done& e) {}
+	  catch(xsom::instr::Exit& e) {}
 	  if(display != nullptr)
 	    (*pipe_ptr) << ccmpl::stop;
 	  if(inter)
@@ -1091,7 +1096,7 @@ inline void xsom::instr::KeyboardInteraction::execute() {
       case ERR :
 	break;
       case 27 : // ESC
-       	throw Done();
+       	throw Exit();
       default:
 	inloop = true;
 	break;
