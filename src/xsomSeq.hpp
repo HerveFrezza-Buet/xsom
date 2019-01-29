@@ -13,6 +13,7 @@
 #include <stack>
 #include <memory>
 #include <functional>
+#include <stdexcept>
 
 #include <ncurses.h>
 
@@ -521,6 +522,9 @@ namespace xsom {
 
       bool inter = false;
       bool cont_mode = false;
+      std::ofstream pipe;
+      std::ostream* pipe_ptr;
+      
       xsom::Container* archi;
       ccmpl::chart::Layout* display;
 
@@ -637,12 +641,13 @@ namespace xsom {
       Sequencer(xsom::Container* archi, ccmpl::chart::Layout* display)
 	: archi(archi), display(display) {
 	context.push(std::list<xsom::instr::Instr>());
+	pipe_ptr = &(std::cout);
       }
 
     public:
 
-      Sequencer(const Sequencer&) = default;
-      Sequencer& operator=(const Sequencer&) = default;
+      Sequencer(const Sequencer&) = delete;
+      Sequencer& operator=(const Sequencer&) = delete;
 
       Sequencer(xsom::Container& archi, ccmpl::chart::Layout& display)
 	: Sequencer(&archi, &display) {}
@@ -659,23 +664,29 @@ namespace xsom {
       /**
        * This sets the sequencer into a keybord interaction mode.
        * @step_mode Tells wether the interactive execution is started in setp-by-step mode or not.
+       * @pipename The name of the system named pipe used for data exchange.
        */
-      void interactive(bool step_mode) {
-	this->cont_mode = !step_mode;
+      void interactive(bool step_mode, std::string pipename) {
+	cont_mode = !step_mode;
+	pipe.open(pipename.c_str(), std::fstream::app);
+	if(!pipe)
+	  throw std::runtime_error(std::string("Cannot open pipe \"") + pipename + "\".");
+	pipe_ptr = &pipe;
 	
-	inter = true;
+	// inter = true;
+
+	// initscr();
+	// noecho();
+	// raw();
+	// nodelay(stdscr, cont_mode);
+	// keypad(stdscr, TRUE);
 	
-	newterm(NULL, stderr, stdin);
-	noecho();
-	raw();
-	nodelay(stdscr, cont_mode);
-	
-	mvprintw(0, 0, "Key bindings");
-	mvprintw(1, 0, "  <space> : next/pause");
-	mvprintw(2, 0, "  c       : cont");
-	mvprintw(3, 0, "  ESC     : quit");
-	move    (4, 0);
-	refresh();
+	// mvprintw(0, 0, "Key bindings");
+	// mvprintw(1, 0, "  <space> : next/pause");
+	// mvprintw(2, 0, "  c       : cont");
+	// mvprintw(3, 0, "  ESC     : quit");
+	// move    (4, 0);
+	// refresh();
       }
 
       /**
@@ -904,7 +915,7 @@ namespace xsom {
       void __plot(const FLAGS& flags) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([display = this->display, f]() {std::cout << (*display)(f(), ccmpl::nofile(), ccmpl::nofile());});
+	  __step([display = this->display, f, &os = *pipe_ptr]() {os << (*display)(f(), ccmpl::nofile(), ccmpl::nofile()) << std::flush;});
 	}
       }
       
@@ -915,9 +926,9 @@ namespace xsom {
       void __plot_png(const FLAGS& flags, const std::string& png_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, png_prefix]() {
+	  __step([this, f, png_prefix, &os = *pipe_ptr]() {
 	      auto png = this->next_png(png_prefix);
-	      std::cout << (*(this->display))(f(), ccmpl::nofile(), png);
+	      os << (*(this->display))(f(), ccmpl::nofile(), png) << std::flush;
 	      this->print_save_info(png);
 	    });
 	}
@@ -930,9 +941,9 @@ namespace xsom {
       void __plot_pdf(const FLAGS& flags, const std::string& pdf_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, pdf_prefix]() {
+	  __step([this, f, pdf_prefix, &os = *pipe_ptr]() {
 	      auto pdf = this->next_pdf(pdf_prefix);
-	      std::cout << (*(this->display))(f(), pdf, ccmpl::nofile());
+	      os << (*(this->display))(f(), pdf, ccmpl::nofile()) << std::flush;
 	      this->print_save_info(pdf);
 	    });
 	}
@@ -945,10 +956,10 @@ namespace xsom {
       void __plot(const FLAGS& flags, const std::string& pdf_prefix, const std::string& png_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, pdf_prefix, png_prefix]() {
-	  auto pdf = this->next_pdf(pdf_prefix);
-	  auto png = this->next_png(png_prefix);
-	      std::cout << (*(this->display))(f(), pdf, png);
+	  __step([this, f, pdf_prefix, png_prefix, &os = *pipe_ptr]() {
+	      auto pdf = this->next_pdf(pdf_prefix);
+	      auto png = this->next_png(png_prefix);
+	      os << (*(this->display))(f(), pdf, png) << std::flush;
 	      this->print_save_info(pdf);
 	      this->print_save_info(png);
 	    });
@@ -1008,7 +1019,7 @@ namespace xsom {
 	  }
 	  catch(xsom::instr::Done& e) {}
 	  if(display != nullptr)
-	    std::cout << ccmpl::stop;
+	    (*pipe_ptr) << ccmpl::stop;
 	  if(inter)
 	    endwin(); // closing ncurse context.
 	}
@@ -1028,9 +1039,10 @@ namespace xsom {
 
 inline void xsom::instr::KeyboardInteraction::execute() {
   if(seq->inter) {
-    int key = 0;
-    while(key != ERR && key != ' ') {
-      key = getch();
+    bool inloop = true;
+    while(inloop) {
+      inloop = false;
+      int key = getch();
       switch(key) {
       case 'c' :
 	seq->cont_mode = true;
@@ -1041,10 +1053,12 @@ inline void xsom::instr::KeyboardInteraction::execute() {
 	nodelay(stdscr, seq->cont_mode);
 	break;
       case 27 : // ESC
-	throw Done();
+       	throw Done();
       default:
 	break;
       }
     }
   }
+  
+  has_next = false;
 }
