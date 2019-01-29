@@ -130,8 +130,8 @@ namespace xsom {
     class KeyboardInteraction : public Instruction {
     private:
       friend class xsom::setup::Sequencer;
-      xsom::setup::Sequencer* seq;
-      KeyboardInteraction(xsom::setup::Sequencer* seq) : Instruction(), seq(seq) {}
+      xsom::setup::Sequencer* owner;
+      KeyboardInteraction(xsom::setup::Sequencer* owner) : Instruction(), owner(owner) {}
 
     protected:
       
@@ -140,7 +140,7 @@ namespace xsom {
     public:
       
       virtual Instr deep_copy() {
-	return Instr(new KeyboardInteraction(seq));
+	return Instr(new KeyboardInteraction(owner));
       }
       
     };
@@ -231,31 +231,19 @@ namespace xsom {
     class Loop : public Instruction {
     private:
       friend class xsom::setup::Sequencer;
+      xsom::setup::Sequencer* owner;
       Instr body;
       
-      Loop(Instr body) : Instruction(), body(body) {}
+      Loop(xsom::setup::Sequencer* owner, Instr body) : Instruction(),  owner(owner), body(body) {}
 
     protected:
       
-      virtual void execute() {
-	try {
-	  body->next();
-	}
-	catch(Done e) {
-	  body = body->deep_copy();
-	  try {
-	    body->next();
-	  }
-	  catch(Done e) {
-	    std::cerr << msg::seq_error << "loop has an invalid instruction" << msg::endl;
-	  }
-	}
-      }
+      virtual void execute();
 
     public:
       
       virtual Instr deep_copy() {
-	return Instr(new Loop(body->deep_copy()));
+	return Instr(new Loop(owner, body->deep_copy()));
       }
       
     };
@@ -594,11 +582,17 @@ namespace xsom {
       }
 
       void print_save_info(const std::string& filename) {
-	std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
+	if(inter) 
+	  inter_msg("Save", std::string("\"") + filename + std::string("\""));
+	else
+	  std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
       }
       
       void print_load_info(const std::string& filename) {
-	std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
+	if(inter) 
+	  inter_msg("Load", std::string("\"") + filename + std::string("\""));
+	else
+	  std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
       }
 
 
@@ -644,6 +638,8 @@ namespace xsom {
 	pipe_ptr = &(std::cout);
       }
 
+      void inter_msg(const std::string& tag, const std::string& message) {}
+
     public:
 
       Sequencer(const Sequencer&) = delete;
@@ -662,6 +658,26 @@ namespace xsom {
 	: Sequencer(nullptr,nullptr) {}
 
       /**
+       * This displays an error message
+       */
+      void msg_error(const std::string& message) {
+	if(inter)
+	  inter_msg("Error", message);
+	else
+	  std::cerr << msg::seq_error << message << msg::endl;
+      }
+      
+      /**
+       * This displays an information message
+       */
+      void msg_info(const std::string& message) {
+	if(inter)
+	  inter_msg("Info", message);
+	else
+	  std::cerr << msg::seq_msg_info << message << msg::endl;
+      }
+
+      /**
        * This sets the sequencer into a keybord interaction mode.
        * @step_mode Tells wether the interactive execution is started in setp-by-step mode or not.
        * @pipename The name of the system named pipe used for data exchange.
@@ -673,20 +689,20 @@ namespace xsom {
 	  throw std::runtime_error(std::string("Cannot open pipe \"") + pipename + "\".");
 	pipe_ptr = &pipe;
 	
-	// inter = true;
+	inter = true;
 
-	// initscr();
-	// noecho();
-	// raw();
-	// nodelay(stdscr, cont_mode);
-	// keypad(stdscr, TRUE);
+	initscr();
+	noecho();
+	raw();
+	nodelay(stdscr, cont_mode);
+	keypad(stdscr, TRUE);
 	
-	// mvprintw(0, 0, "Key bindings");
-	// mvprintw(1, 0, "  <space> : next/pause");
-	// mvprintw(2, 0, "  c       : cont");
-	// mvprintw(3, 0, "  ESC     : quit");
-	// move    (4, 0);
-	// refresh();
+	mvprintw(0, 0, "Key bindings");
+	mvprintw(1, 0, "  <space> : next/pause");
+	mvprintw(2, 0, "  c       : cont");
+	mvprintw(3, 0, "  ESC     : quit");
+	move    (4, 0);
+	refresh();
       }
 
       /**
@@ -793,7 +809,7 @@ namespace xsom {
       void __pool() {
 	auto seq = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
 	context.pop();
-	context.top().push_back(xsom::instr::Instr(new xsom::instr::Loop(seq)));
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::Loop(this, seq)));
       }
       
       /**
@@ -1038,19 +1054,19 @@ namespace xsom {
 
 
 inline void xsom::instr::KeyboardInteraction::execute() {
-  if(seq->inter) {
+  if(owner->inter) {
     bool inloop = true;
     while(inloop) {
       inloop = false;
       int key = getch();
       switch(key) {
       case 'c' :
-	seq->cont_mode = true;
-	nodelay(stdscr, seq->cont_mode);
+	owner->cont_mode = true;
+	nodelay(stdscr, owner->cont_mode);
 	break;
       case ' ' :
-	seq->cont_mode = false;
-	nodelay(stdscr, seq->cont_mode);
+	owner->cont_mode = false;
+	nodelay(stdscr, owner->cont_mode);
 	break;
       case 27 : // ESC
        	throw Done();
@@ -1061,4 +1077,19 @@ inline void xsom::instr::KeyboardInteraction::execute() {
   }
   
   has_next = false;
+}
+
+inline void xsom::instr::Loop::execute() {
+  try {
+    body->next();
+  }
+  catch(Done e) {
+    body = body->deep_copy();
+    try {
+      body->next();
+    }
+    catch(Done e) {
+      owner->msg_error("loop has an invalid instruction");
+    }
+  }
 }
