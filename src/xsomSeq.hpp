@@ -15,6 +15,9 @@
 #include <functional>
 #include <stdexcept>
 
+#include <unistd.h>
+#include <fcntl.h>
+
 #include <ncurses.h>
 
 namespace xsom {
@@ -638,7 +641,22 @@ namespace xsom {
 	pipe_ptr = &(std::cout);
       }
 
-      void inter_msg(const std::string& tag, const std::string& message) {}
+      void inter_menu() {
+	::clear();
+	mvprintw(0, 0, "Key bindings");
+	mvprintw(1, 0, "  <space> : next/pause");
+	mvprintw(2, 0, "  c       : cont");
+	mvprintw(3, 0, "  ESC     : quit");
+	move    (4, 0);
+      }
+		       
+
+      void inter_msg(const std::string& tag, const std::string& message) {
+	inter_menu();
+	mvprintw(5, 0, (std::string(tag) + " : " + message).c_str());
+	move    (7, 0);
+	refresh();
+      }
 
     public:
 
@@ -688,6 +706,12 @@ namespace xsom {
 	if(!pipe)
 	  throw std::runtime_error(std::string("Cannot open pipe \"") + pipename + "\".");
 	pipe_ptr = &pipe;
+
+	// Let us remove pipe buffer for more reactivity.
+	auto f = open(pipename.c_str(), O_WRONLY);
+	fcntl(f, F_SETPIPE_SZ, 0L);
+	close(f);
+      
 	
 	inter = true;
 
@@ -696,12 +720,8 @@ namespace xsom {
 	raw();
 	nodelay(stdscr, cont_mode);
 	keypad(stdscr, TRUE);
-	
-	mvprintw(0, 0, "Key bindings");
-	mvprintw(1, 0, "  <space> : next/pause");
-	mvprintw(2, 0, "  c       : cont");
-	mvprintw(3, 0, "  ESC     : quit");
-	move    (4, 0);
+
+	inter_menu();
 	refresh();
       }
 
@@ -1068,7 +1088,7 @@ inline void xsom::instr::KeyboardInteraction::execute() {
 	owner->cont_mode = false;
 	nodelay(stdscr, owner->cont_mode);
 	break;
-      case 27 : // ESC
+      case 'q' : // ESC
        	throw Done();
       default:
 	break;
