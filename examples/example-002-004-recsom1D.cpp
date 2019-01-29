@@ -8,21 +8,22 @@
 #include <algorithm>
 #include <functional>
 #include <array>
+#include <deque>
 
 using namespace std::placeholders;
 
 #define MAP_SIZE 500
-#define T_MATCH_SIGMA .1
-#define C_MATCH_SIGMA .1
-#define ALPHA .05
-#define H_RADIUS .1
+#define T_MATCH_SIGMA .4
+#define C_MATCH_SIGMA .4
+#define ALPHA .1
+#define H_RADIUS .05
 #define SEQUENCE "AAAFFFBCDE"
 #define BETA 0.5
 
 
 // For the upper layer convolution.
 #define KERNEL_TYPE xsom::tab::fft::KernelType::Gaussian  // We use a Gaussian convolution kernel
-#define SIGMA_CONV .01                                    // This is its standard deviation un Pos units.
+#define SIGMA_CONV .0125                                  // This is its standard deviation un Pos units.
 #define GRID_SIGMA (SIGMA_CONV * MAP_SIZE)                // This is its standard deviation in table index units (since MAP_SIZE is mapped into [0,1]).
 
 // Other macros
@@ -101,6 +102,9 @@ void update_output(Pos& out, const Pos& request) {out = request;}
 
 
 class State{
+private :
+  std::size_t seq_size;
+  
 public:
   Input       x     = 0;        // The current input
   Pos         bmu_  = 0;        // The previous bmu
@@ -113,10 +117,13 @@ public:
   Acts        ca;               // cortical matching
   CWeights    cw;               // cortical weights
   Map         ma;               // map activities
+
+  std::deque<Pos> bmus;
   
   template<typename RANDOM_DEVICE>
   State(RANDOM_DEVICE& rd)
-    : mapping(0, 1, MAP_SIZE),
+    : seq_size(std::string(SEQUENCE).size()),
+      mapping(0, 1, MAP_SIZE),
       ta(mapping),
       tw(mapping),
       ca(mapping),
@@ -132,7 +139,10 @@ public:
   void next(const Input& o) {
     // This is for next step computation.
     x  = o;
-    bmu_ = bmu; 
+    bmu_ = bmu;
+    bmus.push_front(bmu);
+    if(bmus.size() > seq_size)
+      bmus.pop_back();
   }
 };
 
@@ -183,7 +193,15 @@ public:
 // Plot functions
 
 void fill_bar(const double& value, double& bar_pos) {bar_pos = value;}
-void print_label(ccmpl::Point& pos, std::string& text, const std::string& label) {pos = ccmpl::Point(0.02, 0.9); text = label;}
+
+void print_label(const std::string& label, ccmpl::Point& pos, std::string& text) {pos = ccmpl::Point(0.02, 0.9); text = label;}
+
+void fill_bmus(std::deque<Pos>& data, std::vector<ccmpl::Point>& dots) {
+  dots.clear();
+  auto out = std::back_inserter(dots);
+  for(auto d : data)
+    *(out++) = {d, 1.0};
+}
 
 
 #define VIEWER_PREFIX "recurrent_SOM"
@@ -213,11 +231,11 @@ int main(int argc, char* argv[]) {
   // Display global merge (raw and convoluated), and bars for bmu(t) and bmu(t-1) (dashed).
   display().title = "Merged output";
   display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k'",   std::bind(fill_bar, std::ref(state.bmu), _1));                         flags += "#";
-  display()  += ccmpl::vbar("'k--'", std::bind(fill_bar, std::ref(state.bmu_), _1));                        flags += "#";
-  display()  += ccmpl::line("'b'",   std::bind(&Map::fill_line, std::ref(state.ma), _1));                   flags += "#";
-  display()  += ccmpl::line("'b--'", std::bind(&Map::fill_line_noconv, std::ref(state.ma), _1));            flags += "#";
-  display()  += ccmpl::text("",      std::bind(print_label, _1, _2, std::ref(sequence.display)));           flags += "#";
+  display()  += ccmpl::vbar("'k'",         std::bind(fill_bar, std::ref(state.bmu), _1));                   flags += "#";
+  display()  += ccmpl::vbar("'k--'",       std::bind(fill_bar, std::ref(state.bmu_), _1));                  flags += "#";
+  display()  += ccmpl::line("'b'",         std::bind(&Map::fill_line, std::ref(state.ma), _1));             flags += "#";
+  display()  += ccmpl::line("'b--'",       std::bind(&Map::fill_line_noconv, std::ref(state.ma), _1));      flags += "#";
+  display()  += ccmpl::text("",            std::bind(print_label, std::ref(sequence.display), _1, _2));     flags += "#";
   display++;
 
   // Display thalamic matching and a bar for bmu(t).
@@ -256,6 +274,7 @@ int main(int argc, char* argv[]) {
   display()   = ccmpl::view2d({0., 1.}, {0., 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
   display()  += ccmpl::line("'r'",              std::bind(&TWeights::fill_line, std::ref(state.tw), _1));   flags += "#";
   display()  += ccmpl::line("'g'",              std::bind(&TWeights::fill_line, std::ref(state.cw), _1));   flags += "#";
+  display()  += ccmpl::dots("c='b', s=30",      std::bind(fill_bmus, std::ref(state.bmus), _1));            flags += "#";
   
   // the ccmpl::Main object handles generation here.
   m.generate(display, true); // true means "use GUI".
