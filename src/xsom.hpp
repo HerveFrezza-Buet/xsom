@@ -17,6 +17,7 @@
  * @example example-000-003-both.cpp
  *
  * @example example-001-001-sequencer.cpp  
+ * @example example-001-002-sequencer.cpp  
  *
  * @example example-002-001-tabular.cpp
  * @example example-002-002-convolution.cpp

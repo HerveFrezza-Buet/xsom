@@ -18,8 +18,9 @@ find_package(PkgConfig)
 
 pkg_check_modules(FFTW fftw3 REQUIRED)
 pkg_check_modules(CCMPL ccmpl REQUIRED)
+pkg_check_modules(NCURSES ncurses REQUIRED)
 
-set(PKG_CONFIG_DEPENDS "fftw3 ccmpl")
+set(PKG_CONFIG_DEPENDS "fftw3 ccmpl ncurses")
 
 #######################################
 # Setting the compilation flags
@@ -29,23 +30,25 @@ set(PKG_CONFIG_DEPENDS "fftw3 ccmpl")
 SET(PROJECT_CFLAGS "-Wall -std=c++14")
 
 # cflags added by the pkg-config dependencies contains ';' as separator. This is a fix.
-string(REPLACE ";" " " FFTW_CFLAGS "${FFTW_CFLAGS}")
-string(REPLACE ";" " " CCMPL_CFLAGS "${CCMPL_CFLAGS}")
+string(REPLACE ";" " " FFTW_CFLAGS    "${FFTW_CFLAGS}")
+string(REPLACE ";" " " CCMPL_CFLAGS   "${CCMPL_CFLAGS}")
+string(REPLACE ";" " " NCURSES_CFLAGS "${NCURSES_CFLAGS}")
 
 # lib flags added by the package
 SET(PROJECT_LIBS "-Wl,--no-as-needed ")
 
 # libs added by the pkg-config dependencies contains ';' as separator. This is a fix.
-string(REPLACE ";" " " FFTW_LDFLAGS "${FFTW_LDFLAGS}")
-string(REPLACE ";" " " CCMPL_LDFLAGS "${CCMPL_LDFLAGS}")
+string(REPLACE ";" " " FFTW_LDFLAGS    "${FFTW_LDFLAGS}")
+string(REPLACE ";" " " CCMPL_LDFLAGS   "${CCMPL_LDFLAGS}")
+string(REPLACE ";" " " NCURSES_LDFLAGS "${NCURSES_LDFLAGS}")
 
 # ldflags required, but not provided by pkg-config
 SET(PROJECT_LDFLAGS "")
 
 # Gathering of all flags
 # (e.g. for compiling examples)
-SET(PROJECT_ALL_CFLAGS  "${PROJECT_CFLAGS} ${FFTW_CFLAGS} ${CCMPL_CFLAGS}")
-SET(PROJECT_ALL_LDFLAGS "${PROJECT_LIBS} ${PROJECT_LDFLAGS} -L${CMAKE_BINARY_DIR}/src ${FFTW_LDFLAGS} ${CCMPL_LDFLAGS}")
+SET(PROJECT_ALL_CFLAGS  "${PROJECT_CFLAGS} ${FFTW_CFLAGS} ${CCMPL_CFLAGS} ${NCURSES_CFLAGS}")
+SET(PROJECT_ALL_LDFLAGS "${PROJECT_LIBS} ${PROJECT_LDFLAGS} -L${CMAKE_BINARY_DIR}/src ${FFTW_LDFLAGS} ${CCMPL_LDFLAGS} ${NCURSES_LDFLAGS}")
 
 # Gathering of all flags from dependancies flags
 # (e.g. for compiling libraries)

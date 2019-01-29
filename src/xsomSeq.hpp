@@ -13,6 +13,12 @@
 #include <stack>
 #include <memory>
 #include <functional>
+#include <stdexcept>
+
+#include <unistd.h>
+#include <fcntl.h>
+
+#include <ncurses.h>
 
 namespace xsom {
   namespace setup {
@@ -106,6 +112,10 @@ namespace xsom {
     struct Done {
       Done() {}
     };
+    
+    struct Exit {
+      Exit() {}
+    };
 
     class Instruction {
     protected:
@@ -123,6 +133,25 @@ namespace xsom {
 	  throw Done();
       }
     };
+
+    class KeyboardInteraction : public Instruction {
+    private:
+      friend class xsom::setup::Sequencer;
+      xsom::setup::Sequencer* owner;
+      KeyboardInteraction(xsom::setup::Sequencer* owner) : Instruction(), owner(owner) {}
+
+    protected:
+      
+      virtual void execute(); // see definition at the end of the this file.
+
+    public:
+      
+      virtual Instr deep_copy() {
+	return Instr(new KeyboardInteraction(owner));
+      }
+      
+    };
+						 
 
     class Step : public Instruction {
     private:
@@ -150,14 +179,14 @@ namespace xsom {
     class Call : public Instruction {
     private:
       friend class xsom::setup::Sequencer;
-      Instr instr;
-      Call(Instr instr) : Instruction(), instr(instr->deep_copy()) {}
+      Instr instruction;
+      Call(Instr instruction) : Instruction(), instruction(instruction->deep_copy()) {}
 
     protected:
       
       virtual void execute() {
 	try {
-	  instr->next();
+	  instruction->next();
 	}
 	catch(Done) {
 	  has_next = false;
@@ -167,7 +196,7 @@ namespace xsom {
     public:
       
       virtual Instr deep_copy() {
-	return Instr(new Call(instr)); // deep copy is performed by Call(...).
+	return Instr(new Call(instruction)); // deep copy is performed by Call(...).
       }
     };
     
@@ -209,31 +238,19 @@ namespace xsom {
     class Loop : public Instruction {
     private:
       friend class xsom::setup::Sequencer;
+      xsom::setup::Sequencer* owner;
       Instr body;
       
-      Loop(Instr body) : Instruction(), body(body) {}
+      Loop(xsom::setup::Sequencer* owner, Instr body) : Instruction(),  owner(owner), body(body) {}
 
     protected:
       
-      virtual void execute() {
-	try {
-	  body->next();
-	}
-	catch(Done e) {
-	  body = body->deep_copy();
-	  try {
-	    body->next();
-	  }
-	  catch(Done e) {
-	    std::cerr << msg::seq_error << "loop has an invalid instruction" << msg::endl;
-	  }
-	}
-      }
+      virtual void execute();
 
     public:
       
       virtual Instr deep_copy() {
-	return Instr(new Loop(body->deep_copy()));
+	return Instr(new Loop(owner, body->deep_copy()));
       }
       
     };
@@ -470,6 +487,9 @@ namespace xsom {
      * seq.__learn();
      * seq.__update_and_learn();
      *
+     * // Keyboard interation (if seq.interactive() has been called initially)
+     * seq.__();
+     *
      * // Plot the data.  std::string flags()
      * seq.__plot(flags);  
      * seq.__plot(flags, "pdf-frame" "png-frame");
@@ -493,6 +513,12 @@ namespace xsom {
     class Sequencer {
     private:
 
+      friend class xsom::instr::KeyboardInteraction;
+
+      bool inter = false;
+      bool cont_mode = false;
+      std::ofstream pipe;
+      std::ostream* pipe_ptr;
       
       xsom::Container* archi;
       ccmpl::chart::Layout* display;
@@ -563,11 +589,17 @@ namespace xsom {
       }
 
       void print_save_info(const std::string& filename) {
-	std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
+	if(inter) 
+	  inter_msg("Save", std::string("\"") + filename + std::string("\""));
+	else
+	  std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
       }
       
       void print_load_info(const std::string& filename) {
-	std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
+	if(inter) 
+	  inter_msg("Load", std::string("\"") + filename + std::string("\""));
+	else
+	  std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
       }
 
 
@@ -610,12 +642,30 @@ namespace xsom {
       Sequencer(xsom::Container* archi, ccmpl::chart::Layout* display)
 	: archi(archi), display(display) {
 	context.push(std::list<xsom::instr::Instr>());
+	pipe_ptr = &(std::cout);
+      }
+
+      void inter_menu() {
+	::clear();
+	mvprintw(0, 0, "Key bindings");
+	mvprintw(1, 0, "  <space> : next/pause");
+	mvprintw(2, 0, "  c       : cont");
+	mvprintw(3, 0, "  ESC     : quit");
+	move    (4, 0);
+      }
+		       
+
+      void inter_msg(const std::string& tag, const std::string& message) {
+	inter_menu();
+	mvprintw(5, 0, (std::string(tag) + " : " + message).c_str());
+	move    (7, 0);
+	refresh();
       }
 
     public:
 
-      Sequencer(const Sequencer&) = default;
-      Sequencer& operator=(const Sequencer&) = default;
+      Sequencer(const Sequencer&) = delete;
+      Sequencer& operator=(const Sequencer&) = delete;
 
       Sequencer(xsom::Container& archi, ccmpl::chart::Layout& display)
 	: Sequencer(&archi, &display) {}
@@ -628,6 +678,56 @@ namespace xsom {
 
       Sequencer()
 	: Sequencer(nullptr,nullptr) {}
+
+      /**
+       * This displays an error message
+       */
+      void msg_error(const std::string& message) {
+	if(inter)
+	  inter_msg("Error", message);
+	else
+	  std::cerr << msg::seq_error << message << msg::endl;
+      }
+      
+      /**
+       * This displays an information message
+       */
+      void msg_info(const std::string& message) {
+	if(inter)
+	  inter_msg("Info", message);
+	else
+	  std::cerr << msg::seq_msg_info << message << msg::endl;
+      }
+
+      /**
+       * This sets the sequencer into a keybord interaction mode.
+       * @step_mode Tells wether the interactive execution is started in setp-by-step mode or not.
+       * @pipename The name of the system named pipe used for data exchange.
+       */
+      void interactive(bool step_mode, std::string pipename) {
+	cont_mode = !step_mode;
+	pipe.open(pipename.c_str(), std::fstream::app);
+	if(!pipe)
+	  throw std::runtime_error(std::string("Cannot open pipe \"") + pipename + "\".");
+	pipe_ptr = &pipe;
+
+	// Let us remove pipe buffer for more reactivity.
+	auto f = open(pipename.c_str(), O_WRONLY);
+	fcntl(f, F_SETPIPE_SZ, 0L);
+	close(f);
+      
+	
+	inter = true;
+
+	initscr();
+	noecho();
+	raw();
+	nodelay(stdscr, cont_mode);
+	keypad(stdscr, TRUE);
+
+	inter_menu();
+	refresh();
+      }
 
       /**
        * Add a step that calls a macro.
@@ -658,6 +758,13 @@ namespace xsom {
 	macro_names.pop();
       }
 
+      /**
+       * Add a keyboard interaction point
+       */
+      void __() {
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::KeyboardInteraction(this)));
+      }
+      
       /**
        * Add a step that calls f. f is "void f()".
        */
@@ -726,7 +833,7 @@ namespace xsom {
       void __pool() {
 	auto seq = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
 	context.pop();
-	context.top().push_back(xsom::instr::Instr(new xsom::instr::Loop(seq)));
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::Loop(this, seq)));
       }
       
       /**
@@ -848,7 +955,7 @@ namespace xsom {
       void __plot(const FLAGS& flags) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([display = this->display, f]() {std::cout << (*display)(f(), ccmpl::nofile(), ccmpl::nofile());});
+	  __step([display = this->display, f, &os = *pipe_ptr]() {os << (*display)(f(), ccmpl::nofile(), ccmpl::nofile()) << std::flush;});
 	}
       }
       
@@ -859,9 +966,9 @@ namespace xsom {
       void __plot_png(const FLAGS& flags, const std::string& png_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, png_prefix]() {
+	  __step([this, f, png_prefix, &os = *pipe_ptr]() {
 	      auto png = this->next_png(png_prefix);
-	      std::cout << (*(this->display))(f(), ccmpl::nofile(), png);
+	      os << (*(this->display))(f(), ccmpl::nofile(), png) << std::flush;
 	      this->print_save_info(png);
 	    });
 	}
@@ -874,9 +981,9 @@ namespace xsom {
       void __plot_pdf(const FLAGS& flags, const std::string& pdf_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, pdf_prefix]() {
+	  __step([this, f, pdf_prefix, &os = *pipe_ptr]() {
 	      auto pdf = this->next_pdf(pdf_prefix);
-	      std::cout << (*(this->display))(f(), pdf, ccmpl::nofile());
+	      os << (*(this->display))(f(), pdf, ccmpl::nofile()) << std::flush;
 	      this->print_save_info(pdf);
 	    });
 	}
@@ -889,10 +996,10 @@ namespace xsom {
       void __plot(const FLAGS& flags, const std::string& pdf_prefix, const std::string& png_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, pdf_prefix, png_prefix]() {
-	  auto pdf = this->next_pdf(pdf_prefix);
-	  auto png = this->next_png(png_prefix);
-	      std::cout << (*(this->display))(f(), pdf, png);
+	  __step([this, f, pdf_prefix, png_prefix, &os = *pipe_ptr]() {
+	      auto pdf = this->next_pdf(pdf_prefix);
+	      auto png = this->next_png(png_prefix);
+	      os << (*(this->display))(f(), pdf, png) << std::flush;
 	      this->print_save_info(pdf);
 	      this->print_save_info(png);
 	    });
@@ -951,8 +1058,11 @@ namespace xsom {
 	      main->next();
 	  }
 	  catch(xsom::instr::Done& e) {}
+	  catch(xsom::instr::Exit& e) {}
 	  if(display != nullptr)
-	    std::cout << ccmpl::stop;
+	    (*pipe_ptr) << ccmpl::stop;
+	  if(inter)
+	    endwin(); // closing ncurse context.
 	}
       }
     };
@@ -963,5 +1073,51 @@ namespace xsom {
     Sequencer sequencer(ccmpl::chart::Layout& display) {return Sequencer(display);}
     Sequencer sequencer()                              {return Sequencer();}
     
+  }
+}
+
+
+
+inline void xsom::instr::KeyboardInteraction::execute() {
+  if(owner->inter) {
+    bool inloop = true;
+    while(inloop) {
+      inloop = false;
+      int key = getch();
+      switch(key) {
+      case 'c' :
+	owner->cont_mode = true;
+	nodelay(stdscr, owner->cont_mode);
+	break;
+      case ' ' :
+	owner->cont_mode = false;
+	nodelay(stdscr, owner->cont_mode);
+	break;
+      case ERR :
+	break;
+      case 27 : // ESC
+       	throw Exit();
+      default:
+	inloop = true;
+	break;
+      }
+    }
+  }
+  
+  has_next = false;
+}
+
+inline void xsom::instr::Loop::execute() {
+  try {
+    body->next();
+  }
+  catch(Done e) {
+    body = body->deep_copy();
+    try {
+      body->next();
+    }
+    catch(Done e) {
+      owner->msg_error("loop has an invalid instruction");
+    }
   }
 }
