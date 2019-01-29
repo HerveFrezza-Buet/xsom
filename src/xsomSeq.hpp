@@ -1088,9 +1088,12 @@ inline void xsom::instr::KeyboardInteraction::execute() {
 	owner->cont_mode = false;
 	nodelay(stdscr, owner->cont_mode);
 	break;
-      case 'q' : // ESC
+      case ERR :
+	break;
+      case 27 : // ESC
        	throw Done();
       default:
+	inloop = true;
 	break;
       }
     }
