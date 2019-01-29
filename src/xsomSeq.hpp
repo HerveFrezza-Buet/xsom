@@ -14,6 +14,8 @@
 #include <memory>
 #include <functional>
 
+#include <ncurses.h>
+
 namespace xsom {
   namespace setup {
     class Sequencer;
@@ -124,6 +126,25 @@ namespace xsom {
       }
     };
 
+    class KeyboardInteraction : public Instruction {
+    private:
+      friend class xsom::setup::Sequencer;
+      xsom::setup::Sequencer* seq;
+      KeyboardInteraction(xsom::setup::Sequencer* seq) : Instruction(), seq(seq) {}
+
+    protected:
+      
+      virtual void execute(); // see definition at the end of the this file.
+
+    public:
+      
+      virtual Instr deep_copy() {
+	return Instr(new KeyboardInteraction(seq));
+      }
+      
+    };
+						 
+
     class Step : public Instruction {
     private:
       friend class xsom::setup::Sequencer;
@@ -150,14 +171,14 @@ namespace xsom {
     class Call : public Instruction {
     private:
       friend class xsom::setup::Sequencer;
-      Instr instr;
-      Call(Instr instr) : Instruction(), instr(instr->deep_copy()) {}
+      Instr instruction;
+      Call(Instr instruction) : Instruction(), instruction(instruction->deep_copy()) {}
 
     protected:
       
       virtual void execute() {
 	try {
-	  instr->next();
+	  instruction->next();
 	}
 	catch(Done) {
 	  has_next = false;
@@ -167,7 +188,7 @@ namespace xsom {
     public:
       
       virtual Instr deep_copy() {
-	return Instr(new Call(instr)); // deep copy is performed by Call(...).
+	return Instr(new Call(instruction)); // deep copy is performed by Call(...).
       }
     };
     
@@ -470,6 +491,9 @@ namespace xsom {
      * seq.__learn();
      * seq.__update_and_learn();
      *
+     * // Keyboard interation (if seq.interactive() has been called initially)
+     * seq.__();
+     *
      * // Plot the data.  std::string flags()
      * seq.__plot(flags);  
      * seq.__plot(flags, "pdf-frame" "png-frame");
@@ -493,7 +517,10 @@ namespace xsom {
     class Sequencer {
     private:
 
-      
+      friend class xsom::instr::KeyboardInteraction;
+
+      bool inter = false;
+      bool cont_mode = false;
       xsom::Container* archi;
       ccmpl::chart::Layout* display;
 
@@ -630,6 +657,28 @@ namespace xsom {
 	: Sequencer(nullptr,nullptr) {}
 
       /**
+       * This sets the sequencer into a keybord interaction mode.
+       * @step_mode Tells wether the interactive execution is started in setp-by-step mode or not.
+       */
+      void interactive(bool step_mode) {
+	this->cont_mode = !step_mode;
+	
+	inter = true;
+	
+	newterm(NULL, stderr, stdin);
+	noecho();
+	raw();
+	nodelay(stdscr, cont_mode);
+	
+	mvprintw(0, 0, "Key bindings");
+	mvprintw(1, 0, "  <space> : next/pause");
+	mvprintw(2, 0, "  c       : cont");
+	mvprintw(3, 0, "  ESC     : quit");
+	move    (4, 0);
+	refresh();
+      }
+
+      /**
        * Add a step that calls a macro.
        */
       void __call(const std::string& macro_name) {
@@ -658,6 +707,13 @@ namespace xsom {
 	macro_names.pop();
       }
 
+      /**
+       * Add a keyboard interaction point
+       */
+      void __() {
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::KeyboardInteraction(this)));
+      }
+      
       /**
        * Add a step that calls f. f is "void f()".
        */
@@ -953,6 +1009,8 @@ namespace xsom {
 	  catch(xsom::instr::Done& e) {}
 	  if(display != nullptr)
 	    std::cout << ccmpl::stop;
+	  if(inter)
+	    endwin(); // closing ncurse context.
 	}
       }
     };
@@ -963,5 +1021,30 @@ namespace xsom {
     Sequencer sequencer(ccmpl::chart::Layout& display) {return Sequencer(display);}
     Sequencer sequencer()                              {return Sequencer();}
     
+  }
+}
+
+
+
+inline void xsom::instr::KeyboardInteraction::execute() {
+  if(seq->inter) {
+    int key = 0;
+    while(key != ERR && key != ' ') {
+      key = getch();
+      switch(key) {
+      case 'c' :
+	seq->cont_mode = true;
+	nodelay(stdscr, seq->cont_mode);
+	break;
+      case ' ' :
+	seq->cont_mode = false;
+	nodelay(stdscr, seq->cont_mode);
+	break;
+      case 27 : // ESC
+	throw Done();
+      default:
+	break;
+      }
+    }
   }
 }
