@@ -14,6 +14,7 @@
 #include <memory>
 #include <functional>
 #include <stdexcept>
+#include <tuple>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -519,6 +520,9 @@ namespace xsom {
       bool cont_mode = false;
       std::ofstream pipe;
       std::ostream* pipe_ptr;
+
+      std::map<int, std::tuple<std::string, std::string, std::function<void ()>>> menu;
+      std::size_t max_key_size = 0;
       
       xsom::Container* archi;
       ccmpl::chart::Layout* display;
@@ -643,22 +647,40 @@ namespace xsom {
 	: archi(archi), display(display) {
 	context.push(std::list<xsom::instr::Instr>());
 	pipe_ptr = &(std::cout);
+
+	add_menu_item(' ', "<space>", "next/pause",
+		      [this]() {
+			this->cont_mode = false;
+			nodelay(stdscr, this->cont_mode);
+		      });
+	add_menu_item('c', "c", "run (continue)",
+		      [this]() {
+			this->cont_mode = true;
+			nodelay(stdscr, this->cont_mode);
+		      });
+	add_menu_item(27, "ESC", "quit",
+		      []() {throw xsom::instr::Exit();});
+	
       }
 
       void inter_menu() {
 	::clear();
 	mvprintw(0, 0, "Key bindings");
-	mvprintw(1, 0, "  <space> : next/pause");
-	mvprintw(2, 0, "  c       : cont");
-	mvprintw(3, 0, "  ESC     : quit");
-	move    (4, 0);
+	int i=1;
+	for(auto& kv : menu) {
+	  std::ostringstream ostr;
+	  ostr << std::setw(max_key_size) << std::get<0>(kv.second)
+	       << " : " << std::get<1>(kv.second);
+	  mvprintw(i++, 0, ostr.str().c_str());
+	}
+	    
       }
 		       
 
       void inter_msg(const std::string& tag, const std::string& message) {
 	inter_menu();
-	mvprintw(5, 0, (std::string(tag) + " : " + message).c_str());
-	move    (7, 0);
+	mvprintw(menu.size()+3, 0, (std::string(tag) + " : " + message).c_str());
+	move    (menu.size()+4, 0);
 	refresh();
       }
 
@@ -678,6 +700,21 @@ namespace xsom {
 
       Sequencer()
 	: Sequencer(nullptr,nullptr) {}
+
+      /**
+       * Add a menu item in the interactive mode menu.
+       * @keycode An integer representing a key (in the keyboard).
+       * @keytag  A short string describing the key.
+       * @msg A short description of what presing that key does.
+       * @callback The function to be called.
+       */
+      void add_menu_item(int keycode,
+			 const std::string& keytag,
+			 const std::string& msg,
+			 std::function<void ()> callback) {
+	max_key_size = std::max(max_key_size, keytag.size());
+	menu[keycode] = std::make_tuple(keytag, msg, callback);
+      }
 
       /**
        * This displays an error message
@@ -1085,20 +1122,14 @@ inline void xsom::instr::KeyboardInteraction::execute() {
       inloop = false;
       int key = getch();
       switch(key) {
-      case 'c' :
-	owner->cont_mode = true;
-	nodelay(stdscr, owner->cont_mode);
-	break;
-      case ' ' :
-	owner->cont_mode = false;
-	nodelay(stdscr, owner->cont_mode);
-	break;
       case ERR :
 	break;
-      case 27 : // ESC
-       	throw Exit();
       default:
-	inloop = true;
+	auto it = owner->menu.find(key);
+	if(it != owner->menu.end()) 
+	  (std::get<2>(it->second))();
+	else
+	  inloop = true;
 	break;
       }
     }
