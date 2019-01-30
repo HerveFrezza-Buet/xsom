@@ -53,9 +53,15 @@ int main(int argc, char* argv[]) {
   // Let us build a sequencer for synchronizing the computation
   auto seq    = xsom::setup::sequencer(display);
 
-  // Let us turn the sequence into a keyboard interaction mode.
+  // Let us turn the sequence into a keyboard interaction mode. We add a custom menue item.
   seq.interactive(true, "/tmp/ccmpl");
-
+  seq.add_menu_item('x',                    // The key to be pressed.
+		    "the 'x' key",          // The key description.
+		    "Prints 'Hello world'", // The key description.
+		    [&seq]() {              // What that key does.
+		      seq.msg_info("Hello World");
+		    });
+  
   // See the doxygen documentation of xsom::setup::Sequencer for an
   // exhaustive list of sequencer functionalities.
 
