@@ -52,6 +52,18 @@ namespace xsom {
       std::function<bool (typename MAPPING::position_type pos)> pos_is_valid;
       bool use_validation_mask;
 
+      friend std::ostream& operator<<(std::ostream& os, const Table& t) {
+	for(auto d : t.content)
+	  os << d << ' ';
+	return os;
+      }
+      
+      friend std::istream& operator>>(std::istream& is, Table& t) {
+	for(auto& d : t.content)
+	  is >> d;
+	return is;
+      }
+
       Table(const MAPPING& m) 
 	: mapping(m), 
 	  content(m.length),

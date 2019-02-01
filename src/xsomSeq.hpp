@@ -592,20 +592,6 @@ namespace xsom {
 	return next(frame_png, name, name+"-", ".png");
       }
 
-      void print_save_info(const std::string& filename) {
-	if(inter) 
-	  inter_msg("Save", std::string("\"") + filename + std::string("\""));
-	else
-	  std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
-      }
-      
-      void print_load_info(const std::string& filename) {
-	if(inter) 
-	  inter_msg("Load", std::string("\"") + filename + std::string("\""));
-	else
-	  std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
-      }
-
 
       void load(const std::string& filename) {
 	if(this->load_fct) {
@@ -624,7 +610,6 @@ namespace xsom {
 	  
       }
 
-
       void save(const std::string& filename) {
 	if(this->save_fct) {
 	  std::ofstream file;
@@ -640,6 +625,20 @@ namespace xsom {
 	else
 	  std::cerr << msg::seq_error << "no save function defined (have you called __on_save ?)."<< msg::endl;
 	  
+      }
+      
+      void print_save_info(const std::string& filename) {
+	if(inter) 
+	  inter_msg("Save", std::string("\"") + filename + std::string("\""));
+	else
+	  std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
+      }
+      
+      void print_load_info(const std::string& filename) {
+	if(inter) 
+	  inter_msg("Load", std::string("\"") + filename + std::string("\""));
+	else
+	  std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
       }
 
       
@@ -667,6 +666,10 @@ namespace xsom {
 	::clear();
 	mvprintw(0, 0, "Key bindings");
 	int i=1;
+	{
+	  std::ofstream f("toto.txt");
+	  f << menu.size();
+	}
 	for(auto& kv : menu) {
 	  std::ostringstream ostr;
 	  ostr << std::setw(max_key_size) << std::get<0>(kv.second)
@@ -701,8 +704,9 @@ namespace xsom {
       Sequencer()
 	: Sequencer(nullptr,nullptr) {}
 
+
       /**
-       * Add a menu item in the interactive mode menu.
+       * Add a menu item in the interactive mode menu. Call this method before calling interactive().
        * @keycode An integer representing a key (in the keyboard).
        * @keytag  A short string describing the key.
        * @msg A short description of what presing that key does.
@@ -737,7 +741,7 @@ namespace xsom {
       }
 
       /**
-       * This sets the sequencer into a keybord interaction mode.
+       * This sets the sequencer into a keybord interaction mode. Call add_menue_item before calling this method.
        * @step_mode Tells wether the interactive execution is started in setp-by-step mode or not.
        * @pipename The name of the system named pipe used for data exchange.
        */
@@ -752,7 +756,6 @@ namespace xsom {
 	auto f = open(pipename.c_str(), O_WRONLY);
 	fcntl(f, F_SETPIPE_SZ, 0L);
 	close(f);
-      
 	
 	inter = true;
 
