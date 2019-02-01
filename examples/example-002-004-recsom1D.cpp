@@ -200,10 +200,10 @@ public:
     case 'F': res = 1.0; break;
     default : res = 0;
     }
+    compute_display();
+    
     if(++current == seq.end())
       current = seq.begin();
-    
-    compute_display();
     
     return res;
   }
@@ -213,6 +213,13 @@ public:
 // Plot functions
 
 void fill_bar(const double& value, double& bar_pos) {bar_pos = value;}
+
+void fill_A(double& bar_pos) {bar_pos = 0.0;}
+void fill_B(double& bar_pos) {bar_pos = 0.2;}
+void fill_C(double& bar_pos) {bar_pos = 0.4;}
+void fill_D(double& bar_pos) {bar_pos = 0.6;}
+void fill_E(double& bar_pos) {bar_pos = 0.8;}
+void fill_F(double& bar_pos) {bar_pos = 1.0;}
 
 void print_label(const std::string& label, ccmpl::Point& pos, std::string& text) {pos = ccmpl::Point(0.02, -.25); text = label;}
 
@@ -289,6 +296,12 @@ int main(int argc, char* argv[]) {
   display().title  = "Thalamic weights";
   display().ytitle = "observation";
   display()   = ccmpl::view2d({0., 1.}, {-.1, 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_A);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_B);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_C);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_D);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_E);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_F);                                                    flags += "#";
   display()  += ccmpl::vbar("'k'",              std::bind(fill_bar, std::ref(state.bmu), _1));              flags += "#";
   display()  += ccmpl::line("'k'",              std::bind(&TWeights::fill_line, std::ref(state.tw), _1));   flags += "#";
   display()  += ccmpl::hbar("'r', linewidth=3", std::bind(fill_bar, std::ref(state.x), _1));                flags += "#";
@@ -305,6 +318,12 @@ int main(int argc, char* argv[]) {
   // Display both weights.
   display().title = "All weights";
   display()   = ccmpl::view2d({0., 1.}, {-.5, 1.5}, ccmpl::aspect::fit, ccmpl::span::placeholder);
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_A);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_B);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_C);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_D);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_E);                                                    flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_F);                                                    flags += "#";
   display()  += ccmpl::vbar("'k'",         std::bind(fill_bar, std::ref(state.bmu), _1));                   flags += "#";
   display()  += ccmpl::vbar("'k--'",       std::bind(fill_bar, std::ref(state.bmu_), _1));                  flags += "#";
   display()  += ccmpl::line("'r'",         std::bind(&TWeights::fill_line, std::ref(state.tw), _1));        flags += "#";
