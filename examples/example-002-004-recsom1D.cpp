@@ -373,7 +373,7 @@ int main(int argc, char* argv[]) {
   seq.add_menu_item('2', "2", std::string("Set input to ") + SEQ_2, [&seq, &sequence ](){sequence.set_sequence(SEQ_2); seq.msg_info("Switching to " SEQ_2);});
   seq.add_menu_item('3', "3", std::string("Set input to ") + SEQ_3, [&seq, &sequence ](){sequence.set_sequence(SEQ_3); seq.msg_info("Switching to " SEQ_3);});
   seq.add_menu_item('4', "4", std::string("Set input to ") + SEQ_4, [&seq, &sequence ](){sequence.set_sequence(SEQ_4); seq.msg_info("Switching to " SEQ_4);});
-  seq.add_menu_item('x', "x", "Toggle step-by-step mode",           [&seq, &step_mode](){step_mode = !step_mode; if(step_mode) seq.msg_info("Step by step mode"); else seq.msg_info("Big step mode");});
+  seq.add_menu_item('x', "x", "Toggle step-by-step mode",           [&seq, &step_mode](){step_mode = !step_mode; if(step_mode) seq.msg_info("Step by step mode"); else seq.msg_info("Big step mode (20 steps)");});
   seq.add_menu_item('s', "s", "Save into recsom.data",              [&seq, &state    ](){state.save("recsom.data"); seq.msg_info("Saving \"recsom.data\"");});
   seq.add_menu_item('l', "l", "Load from recsom.data",              [&seq, &state    ](){state.load("recsom.data"); seq.msg_info("Loading \"recsom.data\"");});
   
