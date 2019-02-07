@@ -690,6 +690,8 @@ namespace xsom {
     public:
 
       Sequencer(const Sequencer&) = delete;
+      Sequencer(Sequencer&&)      = default;
+      
       Sequencer& operator=(const Sequencer&) = delete;
 
       Sequencer(xsom::Container& archi, ccmpl::chart::Layout& display)
