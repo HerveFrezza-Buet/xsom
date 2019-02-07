@@ -125,8 +125,7 @@ public:
 
   std::deque<Pos> bmus;
   
-  template<typename RANDOM_DEVICE>
-  State(RANDOM_DEVICE& rd, std::string& seq)
+  State(std::string& seq)
     : seq(seq),
       mapping(0, 1, MAP_SIZE),
       ta(mapping),
@@ -134,13 +133,27 @@ public:
       ca(mapping),
       cw(mapping),
       ma(mapping, GRID_SIGMA, KERNEL_TYPE) {
-
-    // Random initialization.
-    auto uniform = std::uniform_real_distribution<double>(0.0, 1.0);
-    for(auto& c : tw.content) c = uniform(rd);
-    for(auto& c : cw.content) c = uniform(rd);
   }
 
+  template<typename RANDOM_DEVICE>
+  void random_cweights(RANDOM_DEVICE& rd) {
+    auto uniform = std::uniform_real_distribution<double>(0.0, 1.0);
+    for(auto& c : cw.content) c = uniform(rd);
+  }
+  
+  template<typename RANDOM_DEVICE>
+  void random_tweights(RANDOM_DEVICE& rd) {
+    auto uniform = std::uniform_real_distribution<double>(0.0, 1.0);
+    for(auto& c : tw.content) c = uniform(rd);
+  }
+  
+  template<typename RANDOM_DEVICE>
+  void random_weights(RANDOM_DEVICE& rd) {
+    auto uniform = std::uniform_real_distribution<double>(0.0, 1.0);
+    for(auto& c : cw.content) c = uniform(rd);
+    for(auto& c : tw.content) c = uniform(rd);
+  }
+    
   void next(const Input& o) {
     // This is for next step computation.
     x  = o;
@@ -227,17 +240,16 @@ void print_label(const std::string& label, ccmpl::Point& pos, std::string& text)
 void fill_bmus(const TWeights& tw, std::deque<Pos>& data, std::vector<ccmpl::Point>& dots) {
   dots.clear();
   auto out = std::back_inserter(dots);
-  for(auto d : data) {
-    *(out++) = {d,  1.25};
+  for(auto d : data)
     *(out++) = {d, tw(d)};
-  }
 }
 
 void fill_transitions(const TWeights& tw, const TWeights& cw, std::deque<Pos>& data, std::vector<std::vector<ccmpl::Point>>& lines) {
   lines.clear();
   auto out = std::back_inserter(lines);
   for(auto d : data) {
-    std::vector<ccmpl::Point> segment = {ccmpl::Point(d, tw(d)), ccmpl::Point(cw(d), 1.25)};
+    auto cwd = cw(d);
+    std::vector<ccmpl::Point> segment = {ccmpl::Point(d, tw(d)), {cwd, 1.25}, {cwd, tw(cwd)}};
     *(out++) = std::move(segment);
   }
 }
@@ -268,7 +280,7 @@ int main(int argc, char* argv[]) {
   std::mt19937 gen(rd());
   
   InputSampler sequence(SEQ_1);
-  State state(gen, sequence.seq);
+  State state(sequence.seq);
   
   ccmpl::Main m(argc, argv, VIEWER_PREFIX);
   
@@ -378,6 +390,9 @@ int main(int argc, char* argv[]) {
   map        += cl;                     // We add the "cortical" layer to the map.
   archi      += map;                    // We add the map to the architecture (one map here).
 
+  // We randomize weights
+  state.random_weights(gen);
+
   // Let us build a sequencer for synchronizing the computation
   // See the doxygen documentation of xsom::setup::Sequencer for an
   // exhaustive list of sequencer functionalities.
@@ -393,6 +408,9 @@ int main(int argc, char* argv[]) {
   seq.add_menu_item('x', "x", "Toggle step-by-step mode",           [&seq, &step_mode](){step_mode = !step_mode; if(step_mode) seq.msg_info("Step by step mode"); else seq.msg_info("Big step mode (20 steps)");});
   seq.add_menu_item('s', "s", "Save into recsom.data",              [&seq, &state    ](){state.save("recsom.data"); seq.msg_info("Saving \"recsom.data\"");});
   seq.add_menu_item('l', "l", "Load from recsom.data",              [&seq, &state    ](){state.load("recsom.data"); seq.msg_info("Loading \"recsom.data\"");});
+  seq.add_menu_item('T', "T", "Set random corticals",               [&gen, &state    ](){state.random_tweights(gen);});
+  seq.add_menu_item('C', "C", "Set random thalamics",               [&gen, &state    ](){state.random_cweights(gen);});
+  seq.add_menu_item('W', "W", "Set random weights",                 [&gen, &state    ](){state.random_weights(gen);});
   
   seq.interactive(true, "/tmp/ccmpl"); // call this after having added menus.
 
