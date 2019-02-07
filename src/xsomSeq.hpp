@@ -1131,7 +1131,7 @@ inline void xsom::instr::KeyboardInteraction::execute() {
 	break;
       default:
 	auto it = owner->menu.find(key);
-	inloop = it != owner->menu.end() && key != 'c' && key != ' ';
+	inloop = it == owner->menu.end() && key != 'c' && key != ' ';
 	if(it != owner->menu.end()) 
 	  (std::get<2>(it->second))();
 	break;

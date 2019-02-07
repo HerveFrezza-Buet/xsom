@@ -20,10 +20,11 @@ using namespace std::placeholders;
 #define H_RADIUS .05
 #define BETA 0.5
 
-#define SEQ_1 "ABCDEFEDCB"
-#define SEQ_2 "ABCBAFEDEF"
-#define SEQ_3 "AAAAAF"
-#define SEQ_4 "AAAFFFBCDE"
+#define SEQ_1 "ABCDEF"
+#define SEQ_2 "ABCDEFEDCB"
+#define SEQ_3 "AAAF"
+#define SEQ_4 "AAAAAF"
+#define SEQ_5 "AAAAAFFF"
 
 // For the upper layer convolution.
 #define KERNEL_TYPE xsom::tab::fft::KernelType::Gaussian  // We use a Gaussian convolution kernel
@@ -47,8 +48,8 @@ using Act      = double; // The map activities are scalar.
 // Let us use tabular tools from xsom (1D here)
 
 using Acts     = xsom::tab1d::Table<Act>;
-using CWeights = xsom::tab1d::Table<CWeight>;
 using TWeights = xsom::tab1d::Table<TWeight>;
+using CWeights = xsom::tab1d::Table<CWeight>;
 
 // As we will use convolution at the final layer, wee need a table that performs convolution.
 using Map      = xsom::tab1d::fft::Convolution;
@@ -223,12 +224,24 @@ void fill_F(double& bar_pos) {bar_pos = 1.0;}
 
 void print_label(const std::string& label, ccmpl::Point& pos, std::string& text) {pos = ccmpl::Point(0.02, -.25); text = label;}
 
-void fill_bmus(std::deque<Pos>& data, std::vector<ccmpl::Point>& dots) {
+void fill_bmus(const TWeights& tw, std::deque<Pos>& data, std::vector<ccmpl::Point>& dots) {
   dots.clear();
   auto out = std::back_inserter(dots);
-  for(auto d : data)
-    *(out++) = {d, 1.25};
+  for(auto d : data) {
+    *(out++) = {d,  1.25};
+    *(out++) = {d, tw(d)};
+  }
 }
+
+void fill_transitions(const TWeights& tw, const TWeights& cw, std::deque<Pos>& data, std::vector<std::vector<ccmpl::Point>>& lines) {
+  lines.clear();
+  auto out = std::back_inserter(lines);
+  for(auto d : data) {
+    std::vector<ccmpl::Point> segment = {ccmpl::Point(d, tw(d)), ccmpl::Point(cw(d), 1.25)};
+    *(out++) = std::move(segment);
+  }
+}
+
 
 
 #define VIEWER_PREFIX "recurrent_SOM"
@@ -272,64 +285,67 @@ int main(int argc, char* argv[]) {
   // Display global merge (raw and convoluated), and bars for bmu(t) and bmu(t-1) (dashed).
   display().title = "Merged output";
   display()   = ccmpl::view2d({0., 1.}, {-.1, 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k'",         std::bind(fill_bar, std::ref(state.bmu), _1));                   flags += "#";
-  display()  += ccmpl::vbar("'k--'",       std::bind(fill_bar, std::ref(state.bmu_), _1));                  flags += "#";
-  display()  += ccmpl::line("'b'",         std::bind(&Map::fill_line, std::ref(state.ma), _1));             flags += "#";
-  display()  += ccmpl::line("'b--'",       std::bind(&Map::fill_line_noconv, std::ref(state.ma), _1));      flags += "#";
+  display()  += ccmpl::vbar("'k'",         std::bind(fill_bar, std::ref(state.bmu), _1));                       flags += "#";
+  display()  += ccmpl::vbar("'k--'",       std::bind(fill_bar, std::ref(state.bmu_), _1));                      flags += "#";
+  display()  += ccmpl::line("'b'",         std::bind(&Map::fill_line, std::ref(state.ma), _1));                 flags += "#";
+  display()  += ccmpl::line("'b--'",       std::bind(&Map::fill_line_noconv, std::ref(state.ma), _1));          flags += "#";
   display++;
 
   // Display thalamic matching and a bar for bmu(t).
   display().title = "Thalamic activity";
   display()   = ccmpl::view2d({0., 1.}, {-.1, 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k'", std::bind(fill_bar, std::ref(state.bmu), _1));                           flags += "#";
-  display()  += ccmpl::line("'r'", std::bind(&Acts::fill_line, std::ref(state.ta), _1));                    flags += "#";
+  display()  += ccmpl::vbar("'k'", std::bind(fill_bar, std::ref(state.bmu), _1));                               flags += "#";
+  display()  += ccmpl::line("'r'", std::bind(&Acts::fill_line, std::ref(state.ta), _1));                        flags += "#";
   display++;
 
   // Display cortical matching and a bar for bmu(t-1).
   display().title = "Cortical activity";
   display()   = ccmpl::view2d({0., 1.}, {-.1, 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k--'", std::bind(fill_bar, std::ref(state.bmu_), _1));                        flags += "#";
-  display()  += ccmpl::line("'g'",   std::bind(&Acts::fill_line, std::ref(state.ca), _1));                  flags += "#";
+  display()  += ccmpl::vbar("'k--'", std::bind(fill_bar, std::ref(state.bmu_), _1));                            flags += "#";
+  display()  += ccmpl::line("'g'",   std::bind(&Acts::fill_line, std::ref(state.ca), _1));                      flags += "#";
   display++;
 
   // Display thalamic weights, a horizontal bar for the current input and a vertical bar for bmu(t).
   display().title  = "Thalamic weights";
   display().ytitle = "observation";
   display()   = ccmpl::view2d({0., 1.}, {-.1, 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_A);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_B);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_C);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_D);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_E);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_F);                                                    flags += "#";
-  display()  += ccmpl::vbar("'k'",              std::bind(fill_bar, std::ref(state.bmu), _1));              flags += "#";
-  display()  += ccmpl::line("'k'",              std::bind(&TWeights::fill_line, std::ref(state.tw), _1));   flags += "#";
-  display()  += ccmpl::hbar("'r', linewidth=3", std::bind(fill_bar, std::ref(state.x), _1));                flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_A);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_B);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_C);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_D);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_E);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_F);                                                        flags += "#";
+  display()  += ccmpl::vbar("'k'",              std::bind(fill_bar, std::ref(state.bmu), _1));                  flags += "#";
+  display()  += ccmpl::line("'k'",              std::bind(&TWeights::fill_line, std::ref(state.tw), _1));       flags += "#";
+  display()  += ccmpl::hbar("'r', linewidth=3", std::bind(fill_bar, std::ref(state.x), _1));                    flags += "#";
   display++;
 
   // Display cortical weights, a horizontal bar for the current input (bmu(t-1)) and a vertical bar for bmu(t-1) as well.
   display().title = "Cortical weights";
   display()   = ccmpl::view2d({0., 1.}, {-.1, 1.1}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::vbar("'k--'",            std::bind(fill_bar, std::ref(state.bmu_), _1));             flags += "#";
-  display()  += ccmpl::line("'k'",              std::bind(&CWeights::fill_line, std::ref(state.cw), _1));   flags += "#";
-  display()  += ccmpl::hbar("'g', linewidth=3", std::bind(fill_bar, std::ref(state.bmu_), _1));             flags += "#";
+  display()  += ccmpl::vbar("'k--'",            std::bind(fill_bar, std::ref(state.bmu_), _1));                 flags += "#";
+  display()  += ccmpl::line("'k'",              std::bind(&CWeights::fill_line, std::ref(state.cw), _1));       flags += "#";
+  display()  += ccmpl::hbar("'g', linewidth=3", std::bind(fill_bar, std::ref(state.bmu_), _1));                 flags += "#";
   display++;
 
   // Display both weights.
   display().title = "All weights";
   display()   = ccmpl::view2d({0., 1.}, {-.5, 1.5}, ccmpl::aspect::fit, ccmpl::span::placeholder);
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_A);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_B);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_C);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_D);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_E);                                                    flags += "#";
-  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_F);                                                    flags += "#";
-  display()  += ccmpl::vbar("'k'",         std::bind(fill_bar, std::ref(state.bmu), _1));                   flags += "#";
-  display()  += ccmpl::vbar("'k--'",       std::bind(fill_bar, std::ref(state.bmu_), _1));                  flags += "#";
-  display()  += ccmpl::line("'r'",         std::bind(&TWeights::fill_line, std::ref(state.tw), _1));        flags += "#";
-  display()  += ccmpl::line("'g'",         std::bind(&TWeights::fill_line, std::ref(state.cw), _1));        flags += "#";
-  display()  += ccmpl::dots("c='b', s=30", std::bind(fill_bmus, std::ref(state.bmus), _1));                 flags += "#";
-  display()  += ccmpl::text("",            std::bind(print_label, std::ref(sequence.display), _1, _2));     flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_A);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_B);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_C);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_D);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_E);                                                        flags += "#";
+  display()  += ccmpl::hbar("'r--', alpha=.2",  fill_F);                                                        flags += "#";
+  display()  += ccmpl::vbar("'k'",         std::bind(fill_bar, std::ref(state.bmu), _1));                       flags += "#";
+  display()  += ccmpl::vbar("'k--'",       std::bind(fill_bar, std::ref(state.bmu_), _1));                      flags += "#";
+  display()  += ccmpl::line("'r'",         std::bind(&TWeights::fill_line, std::ref(state.tw), _1));            flags += "#";
+  display()  += ccmpl::line("'g'",         std::bind(&TWeights::fill_line, std::ref(state.cw), _1));            flags += "#";
+  display()  += ccmpl::dots("c='b', s=30", std::bind(fill_bmus, std::ref(state.tw), std::ref(state.bmus), _1)); flags += "#";
+  display()  += ccmpl::lines("'b-', alpha=.2", std::bind(fill_transitions,
+							 std::ref(state.tw), std::ref(state.cw),
+							 std::ref(state.bmus), _1));                            flags += "#";
+  display()  += ccmpl::text("",            std::bind(print_label, std::ref(sequence.display), _1, _2));         flags += "#";
   
   // the ccmpl::Main object handles generation here.
   m.generate(display, true); // true means "use GUI".
@@ -373,6 +389,7 @@ int main(int argc, char* argv[]) {
   seq.add_menu_item('2', "2", std::string("Set input to ") + SEQ_2, [&seq, &sequence ](){sequence.set_sequence(SEQ_2); seq.msg_info("Switching to " SEQ_2);});
   seq.add_menu_item('3', "3", std::string("Set input to ") + SEQ_3, [&seq, &sequence ](){sequence.set_sequence(SEQ_3); seq.msg_info("Switching to " SEQ_3);});
   seq.add_menu_item('4', "4", std::string("Set input to ") + SEQ_4, [&seq, &sequence ](){sequence.set_sequence(SEQ_4); seq.msg_info("Switching to " SEQ_4);});
+  seq.add_menu_item('5', "5", std::string("Set input to ") + SEQ_5, [&seq, &sequence ](){sequence.set_sequence(SEQ_5); seq.msg_info("Switching to " SEQ_5);});
   seq.add_menu_item('x', "x", "Toggle step-by-step mode",           [&seq, &step_mode](){step_mode = !step_mode; if(step_mode) seq.msg_info("Step by step mode"); else seq.msg_info("Big step mode (20 steps)");});
   seq.add_menu_item('s', "s", "Save into recsom.data",              [&seq, &state    ](){state.save("recsom.data"); seq.msg_info("Saving \"recsom.data\"");});
   seq.add_menu_item('l', "l", "Load from recsom.data",              [&seq, &state    ](){state.load("recsom.data"); seq.msg_info("Loading \"recsom.data\"");});
