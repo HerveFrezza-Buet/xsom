@@ -517,7 +517,6 @@ namespace xsom {
       friend class xsom::instr::KeyboardInteraction;
 
       bool inter = false;
-      bool cont_mode = false;
       std::ofstream pipe;
       std::ostream* pipe_ptr;
 
@@ -647,18 +646,9 @@ namespace xsom {
 	context.push(std::list<xsom::instr::Instr>());
 	pipe_ptr = &(std::cout);
 
-	add_menu_item(' ', "<space>", "next/pause",
-		      [this]() {
-			this->cont_mode = false;
-			nodelay(stdscr, this->cont_mode);
-		      });
-	add_menu_item('c', "c", "run (continue)",
-		      [this]() {
-			this->cont_mode = true;
-			nodelay(stdscr, this->cont_mode);
-		      });
-	add_menu_item(27, "ESC", "quit",
-		      []() {throw xsom::instr::Exit();});
+	add_menu_item(' ', "<space>", "next/pause",     [this]() {nodelay(stdscr, false);   });
+	add_menu_item('c', "c",       "run (continue)", [this]() {nodelay(stdscr, true);    });
+	add_menu_item(27 , "ESC",     "quit",           [    ]() {throw xsom::instr::Exit();});
 	
       }
 
@@ -666,10 +656,6 @@ namespace xsom {
 	::clear();
 	mvprintw(0, 0, "Key bindings");
 	int i=1;
-	{
-	  std::ofstream f("toto.txt");
-	  f << menu.size();
-	}
 	for(auto& kv : menu) {
 	  std::ostringstream ostr;
 	  ostr << std::setw(max_key_size) << std::get<0>(kv.second)
@@ -748,7 +734,6 @@ namespace xsom {
        * @pipename The name of the system named pipe used for data exchange.
        */
       void interactive(bool step_mode, std::string pipename) {
-	cont_mode = !step_mode;
 	pipe.open(pipename.c_str(), std::fstream::app);
 	if(!pipe)
 	  throw std::runtime_error(std::string("Cannot open pipe \"") + pipename + "\".");
@@ -764,7 +749,7 @@ namespace xsom {
 	initscr();
 	noecho();
 	raw();
-	nodelay(stdscr, cont_mode);
+	nodelay(stdscr, !step_mode);
 	keypad(stdscr, TRUE);
 
 	inter_menu();
@@ -1122,16 +1107,22 @@ namespace xsom {
 
 inline void xsom::instr::KeyboardInteraction::execute() {
   if(owner->inter) {
-    bool inloop = true;
+    bool inloop = true; // Let us enter the loop....
     while(inloop) {
-      inloop = false;
-      int key = getch();
+      inloop = false;     // We will leave the loop (and pass to the next instruction)... except if inloop becomes true.
+      int key = getch();  // This can be blocking or not, according nodelay settings.
       switch(key) {
       case ERR :
+	// No key pressed recently. We leave the loop.
 	break;
       default:
-	auto it = owner->menu.find(key);
-	inloop = it == owner->menu.end() && key != 'c' && key != ' ';
+	// Some key has been pressed.
+	auto it = owner->menu.find(key); // it is end, or the entry of the custom menu corresponding to key.
+	// If key correponds to nothing acceptable, we get a new key from the user by looping.
+	inloop = it == owner->menu.end();
+	
+	// custom menu execution.
+	// Pre-defined menu entries 'c' and ' ' change the nodelay settings (see constructor where the items are added).
 	if(it != owner->menu.end()) 
 	  (std::get<2>(it->second))();
 	break;
