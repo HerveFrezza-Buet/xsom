@@ -356,7 +356,7 @@ namespace xsom {
 	double bmu() const {
 	  convolution.convolve();
 	  
-	  if(this->use_validation_mask) {
+	  if(this->pos_is_valid) {
 	    unsigned int length  = this->mapping.length;
 	    auto c               = convolution.ws.dst;
 	    double best_pos      = 0;
@@ -401,7 +401,7 @@ namespace xsom {
 	  double              best_value = 0;
 	  unsigned int        rank       = 0;
 	
-	  if(use_validation_mask) {
+	  if(pos_is_valid) {
 	  
 	    // Let us find the first valid data.
 	    for(rank = 0; rank < length; ++rank, ++c) {
@@ -536,7 +536,7 @@ namespace xsom {
 	xsom::Point2D<double> bmu() const {
 	  convolution.convolve();
 	  
-	  if(this->use_validation_mask) {
+	  if(this->pos_is_valid) {
 	    unsigned int          length    = this->mapping.length;
 	    auto                  c         = convolution.ws.dst;
 	    xsom::Point2D<double> best_pos;
@@ -581,7 +581,7 @@ namespace xsom {
 	  double       best_value                       = 0;
 	  unsigned int rank                             = 0;
 	
-	  if(use_validation_mask) {
+	  if(pos_is_valid) {
 	  
 	    // Let us find the first valid data.
 	    for(rank = 0; rank < length; ++rank, ++c) {
@@ -650,14 +650,24 @@ namespace xsom {
 	    unsigned int width  = this->mapping.size.w;
 	    unsigned int height = this->mapping.size.h;
 	    unsigned int nb=0;
-	    while(nb < nb_triangulation_points) {
-	      auto idx = xsom::index2d(width, height, rd);
-	      auto pos = this->mapping.index2pos(idx);
-	      if(this->pos_is_valid(pos)) {
+	    if(this->pos_is_valid) {
+	      while(nb < nb_triangulation_points) {
+		auto idx = xsom::index2d(width, height, rd);
+		auto pos = this->mapping.index2pos(idx);
+		if(this->pos_is_valid(pos)) {
+		  *(out++) = {this->mapping.index2rank(idx),pos};
+		  ++nb;
+		}
+	      }
+	    }
+	    else 
+	      while(nb < nb_triangulation_points) {
+		auto idx = xsom::index2d(width, height, rd);
+		auto pos = this->mapping.index2pos(idx);
 		*(out++) = {this->mapping.index2rank(idx),pos};
 		++nb;
 	      }
-	    }
+	      
 	  }
 	  
 	  points.clear();

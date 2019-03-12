@@ -50,7 +50,6 @@ namespace xsom {
       const MAPPING& mapping;
       std::vector<CONTENT> content;
       std::function<bool (typename MAPPING::position_type pos)> pos_is_valid;
-      bool use_validation_mask;
 
       friend std::ostream& operator<<(std::ostream& os, const Table& t) {
 	for(auto d : t.content)
@@ -67,15 +66,14 @@ namespace xsom {
       Table(const MAPPING& m) 
 	: mapping(m), 
 	  content(m.length),
-	  use_validation_mask(false) {}
+	  pos_is_valid() {}
       
       template<typename fctPOS_IS_VALID>
       Table(const MAPPING& m,
 	    const fctPOS_IS_VALID& fct_pos_is_valid) 
 	: mapping(m), 
 	  content(m.length),
-	  pos_is_valid(fct_pos_is_valid),
-	  use_validation_mask(true) {}
+	  pos_is_valid(fct_pos_is_valid) {}
 
       CONTENT get(typename MAPPING::position_type pos) const {
 	return content[mapping.pos2rank(pos)];
@@ -94,7 +92,7 @@ namespace xsom {
 	unsigned int length  = mapping.length;
 	auto c   = content.begin();
 
-	if(use_validation_mask)
+	if(pos_is_valid)
 	  for(rank = 0; rank < length; ++rank, ++c) {
 	    auto pos = this->mapping.rank2pos(rank);
 	    if(pos_is_valid(pos))
@@ -108,7 +106,7 @@ namespace xsom {
       }
       
       typename MAPPING::position_type bmu() const {
-	if(use_validation_mask) {
+	if(pos_is_valid) {
 	  unsigned int length  = mapping.length;
 	  auto c               = content.begin();
 	  typename MAPPING::position_type best_pos   =  typename MAPPING::position_type();
@@ -150,7 +148,7 @@ namespace xsom {
 	CONTENT                         best_value            = CONTENT();
 	unsigned int rank                                     = 0;
 	
-	if(use_validation_mask) {
+	if(pos_is_valid) {
 	  
 	  // Let us find the first valid data.
 	  for(rank = 0; rank < length; ++rank, ++c) {
@@ -443,7 +441,7 @@ namespace xsom {
 	  unsigned int width  = this->mapping.size.w;
 	  unsigned int height = this->mapping.size.h;
 	  unsigned int nb=0;
-	  if(this->use_validation_mask)
+	  if(this->pos_is_valid)
 	    while(nb < nb_triangulation_points) {
 	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
@@ -572,7 +570,7 @@ namespace xsom {
 	  unsigned int width  = this->mapping.size.w;
 	  unsigned int height = this->mapping.size.h;
 	  unsigned int nb=0;
-	  if(this->use_validation_mask)
+	  if(this->pos_is_valid)
 	    while(nb < nb_triangulation_points) {
 	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
@@ -688,7 +686,7 @@ namespace xsom {
 	  unsigned int width  = this->mapping.size.w;
 	  unsigned int height = this->mapping.size.h;
 	  unsigned int nb=0;
-	  if(this->use_validation_mask)
+	  if(this->pos_is_valid)
 	    while(nb < nb_triangulation_points) {
 	      auto idx = xsom::index2d(width, height, rd);
 	      auto pos = this->mapping.index2pos(idx);
