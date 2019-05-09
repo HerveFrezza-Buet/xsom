@@ -19,22 +19,10 @@ std::string flags() {return "#";}
 
 
 #define VIEW_PREFIX "viewer-001-002"
-#define PIPE_NAME   "/tmp/ccmpl"
 int main(int argc, char* argv[]) {
 
-  if(argc == 1) {
-    std::cout << std::endl
-	      << std::endl
-	      << "Usage :" << std::endl
-	      << "  mkfifo " << PIPE_NAME << std::endl
-	      << "  " << argv[0] << " display" << std::endl
-	      << "  python3 ./" << VIEW_PREFIX << ".py " << PIPE_NAME << std::endl
-	      << "  " << argv[0] << " run    (on another terminal)" << std::endl
-	      << std::endl
-	      << std::endl
-	      << std::endl;
-    ::exit(0);
-  }
+  // make cout unbuffered // HFB
+  //std::cout.rdbuf()->pubsetbuf(0, 0);
   
   ccmpl::Main m(argc,argv,VIEW_PREFIX);
   
@@ -60,7 +48,7 @@ int main(int argc, char* argv[]) {
 		    [&seq]() {              // What that key does.
 		      seq.msg_info("Hello World");
 		    });
-  seq.interactive(true, "/tmp/ccmpl"); // call this after having added menus.
+  //seq.interactive(true); // call this after having added menus. // HFB
   
   // See the doxygen documentation of xsom::setup::Sequencer for an
   // exhaustive list of sequencer functionalities.
@@ -68,6 +56,7 @@ int main(int argc, char* argv[]) {
   /* */ seq.__def("tick");
   /* */   seq.__();
   /* */   seq.__step([&current_time](){++current_time;});
+  /* */   seq.__counter("cntr", "value is ", 0, 10000); // HFB
   /* */ seq.__fed();
   
   /* */ seq.__def("update step");

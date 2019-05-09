@@ -202,7 +202,8 @@ int main(int argc, char* argv[]) {
 
   // Next is the plotting.
   
-  auto display = ccmpl::layout(5.0, 5.0,
+  auto display = ccmpl::layout(m.hostname, m.port,
+			       5.0, 5.0,
 			       {"#-","-#"},
 			       ccmpl::RGB(1., 1., 1.));
   display.set_ratios({1., 1.}, {1., 1.});
@@ -266,7 +267,7 @@ int main(int argc, char* argv[]) {
     }
     
     // Ths sends the display information to the ccmpl viewer (every PERIOD updates).
-    std::cout << display("###" "##", ccmpl::nofile(), ccmpl::nofile());
+    display("###" "##", ccmpl::nofile(), ccmpl::nofile());
   }
 
 

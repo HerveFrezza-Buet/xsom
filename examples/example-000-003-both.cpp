@@ -10,6 +10,8 @@
 #include <cmath>
 #include <algorithm>
 
+#include <cstdlib>
+
 #include <ccmpl.hpp>
 
 using namespace std::placeholders;
@@ -334,12 +336,15 @@ int main(int argc, char* argv[]) {
   std::mt19937 gen(rd());
 
   
-  if(argc != 3) {
+  if(argc != 3 && argc != 4) {
     std::cout << "Usage : " << std::endl
 	      << argv[0] << " wgt generate" << std::endl 
-	      << argv[0] << " wgt run | python3 " << WGT_VIEW_FILE << std::endl
-	      << argv[0] << " act generate" << std::endl
-	      << argv[0] << " act run | python3 " << ACT_VIEW_FILE << std::endl
+	      << "python3 ./" << WGT_VIEW_FILE << " 10000    <--- in another terminal" << std::endl
+	      << argv[0] << " wgt localhost 10000" << std::endl
+	      << std::endl
+	      << argv[0] << " act generate" << std::endl 
+	      << "python3 ./" << ACT_VIEW_FILE << " 10000    <--- in another terminal" << std::endl
+	      << argv[0] << " act localhost 10000" << std::endl
 	      << std::endl
 	      << "Start in wgt mode to run some steps fast, then investigate the activities with the act mode." << std::endl;
     return 0;
@@ -348,6 +353,13 @@ int main(int argc, char* argv[]) {
   bool generate_mode = std::string(argv[2])=="generate";
   bool act_mode = std::string(argv[1])=="act";
 
+  std::string hostname;
+  int         port;
+
+  if(argc == 4) {
+    hostname = argv[2];
+    port     = atoi(argv[3]);
+  }
 
 
   // The state of the simulation
@@ -365,7 +377,8 @@ int main(int argc, char* argv[]) {
     ysize = 6.0; 
   }
 
-  auto display = ccmpl::layout(xsize, ysize, layout, ccmpl::RGB(1., 1., 1.));
+  auto display = ccmpl::layout(hostname, port,
+			       xsize, ysize, layout, ccmpl::RGB(1., 1., 1.));
   if(act_mode) {
     display()         = ccmpl::view2d({-1.0, 1.0}, {-1.0, 1.0}, ccmpl::aspect::equal, ccmpl::span::placeholder); 
     display()         = ccmpl::show_tics(false,false);
@@ -544,14 +557,14 @@ int main(int argc, char* argv[]) {
 
       if(act_mode) {
 	if(u==0)
-	  std::cout << display("-#""###""##""-#""###""##", ccmpl::nofile(), ccmpl::filename("update",ustep,"png"));
+	  display("-#""###""##""-#""###""##", ccmpl::nofile(), ccmpl::filename("update",ustep,"png"));
 	else
-	  std::cout << display("##""###""##""##""###""##", ccmpl::nofile(), ccmpl::filename("update",ustep,"png"));
+	  display("##""###""##""##""###""##", ccmpl::nofile(), ccmpl::filename("update",ustep,"png"));
       }
     }
 
     if(act_mode && step == MAX_STEP) {
-      std::cout << ccmpl::stop;
+      !display;
       return 0;
     }
 
@@ -567,9 +580,9 @@ int main(int argc, char* argv[]) {
 
     if(!act_mode && step % STEP_PERIOD == 0) {
       if(step == 0)
-	std::cout << display("##""#""#""#""#", ccmpl::nofile(), ccmpl::filename("som",wstep,"png"));
+	display("##""#""#""#""#", ccmpl::nofile(), ccmpl::filename("som",wstep,"png"));
       else
-	std::cout << display("##""#""#""#""-", ccmpl::nofile(), ccmpl::filename("som",wstep,"png"));
+	display("##""#""#""#""-", ccmpl::nofile(), ccmpl::filename("som",wstep,"png"));
       ++wstep;
     }
 
