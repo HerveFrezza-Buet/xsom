@@ -32,7 +32,8 @@ int main(int argc, char* argv[]) {
   auto table   = xsom::tab2d::table<xsom::Point2D<double>>(mapping);
   table.learn(twirl);
   
-  auto display      = ccmpl::layout(10,10, {"#"});
+  auto display      = ccmpl::layout(m.hostname, m.port,
+				    10,10, {"#"});
 
   display()         = ccmpl::view2d({-1.1, 1.1}, {-1.1, 1.1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(true, true);
@@ -49,7 +50,8 @@ int main(int argc, char* argv[]) {
   // the ccmpl::Main object handles generation here
   m.generate(display, false); // true means "use GUI"
   
-  std::cout << display("###", "example-002-003.pdf", ccmpl::nofile())
-  	    << ccmpl::stop;
+  display("###", "example-002-003.pdf", ccmpl::nofile());
+  !display;
+  
   return 0;
 }

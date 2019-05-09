@@ -206,7 +206,8 @@ int main(int argc, char* argv[]) {
   
   // Next is the plotting.
   
-  auto display     = ccmpl::layout(10.0, 3.0, {"##"},
+  auto display     = ccmpl::layout(m.hostname, m.port,
+				   10.0, 3.0, {"##"},
 				   ccmpl::RGB(1., 1., 1.));
   
   display()        = ccmpl::view2d({0., MAP_SIZE}, {0., 1.}, ccmpl::aspect::fit , ccmpl::span::placeholder);
@@ -285,9 +286,9 @@ int main(int argc, char* argv[]) {
     // Fill the plot data and send it to the plotting script.
 
     if(e<50)
-      std::cout << display("####""####", ccmpl::nofile(), ccmpl::filename("frame",e,"png"));
+      display("####""####", ccmpl::nofile(), ccmpl::filename("frame",e,"png"));
     else 
-      std::cout << display("####""####", ccmpl::nofile(), ccmpl::nofile());
+      display("####""####", ccmpl::nofile(), ccmpl::nofile());
 
     // Update the architecture.
     

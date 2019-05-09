@@ -517,8 +517,6 @@ namespace xsom {
       friend class xsom::instr::KeyboardInteraction;
 
       bool inter = false;
-      std::ofstream pipe;
-      std::ostream* pipe_ptr;
 
       std::map<int, std::tuple<std::string, std::string, std::function<void ()>>> menu;
       std::size_t max_key_size = 0;
@@ -535,7 +533,7 @@ namespace xsom {
       std::stack<std::string>                    macro_names;
       std::stack<unsigned int>                   for_times;
       std::stack<std::function<bool ()>>         tests;
-      std::stack<xsom::instr::Instr>             thens;
+      std::stack<bool>                           has_elses;
       std::function<void (std::ostream&)>        save_fct;
       std::function<void (std::istream&)>        load_fct;
       
@@ -602,10 +600,10 @@ namespace xsom {
 	    print_load_info(filename);
 	  }
 	  else
-	    std::cerr << msg::seq_error << "cannot open \"" << filename << "\" for reading." << msg::endl;
+	    msg_error(std::string("cannot open \"") + filename +  "\" for reading.");
 	}
 	else
-	  std::cerr << msg::seq_error << "no load function defined (have you called __on_load ?)."<< msg::endl;
+	  msg_error("no load function defined (have you called __on_load ?).");
 	  
       }
 
@@ -619,10 +617,10 @@ namespace xsom {
 	    print_save_info(filename);
 	  }
 	  else
-	    std::cerr << msg::seq_error << "cannot open \"" << filename << "\" for writing." << msg::endl;
+	    msg_error(std::string("cannot open \"") + filename +  "\" for writing.");
 	}
 	else
-	  std::cerr << msg::seq_error << "no save function defined (have you called __on_save ?)."<< msg::endl;
+	  msg_error("no save function defined (have you called __on_save ?).");
 	  
       }
       
@@ -630,21 +628,20 @@ namespace xsom {
 	if(inter) 
 	  inter_msg("Save", std::string("\"") + filename + std::string("\""));
 	else
-	  std::cerr << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
+	  std::cout << msg::seq_file_info << "\"" << filename << "\" saved." << msg::endl;
       }
       
       void print_load_info(const std::string& filename) {
 	if(inter) 
 	  inter_msg("Load", std::string("\"") + filename + std::string("\""));
 	else
-	  std::cerr << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
+	  std::cout << msg::seq_file_info << "\"" << filename << "\" loaded." << msg::endl;
       }
 
       
       Sequencer(xsom::Container* archi, ccmpl::chart::Layout* display)
 	: archi(archi), display(display) {
 	context.push(std::list<xsom::instr::Instr>());
-	pipe_ptr = &(std::cout);
 
 	add_menu_item(' ', "<space>", "next/pause",     [this]() {nodelay(stdscr, false);   });
 	add_menu_item('c', "c",       "run (continue)", [this]() {nodelay(stdscr, true);    });
@@ -715,7 +712,37 @@ namespace xsom {
 	if(inter)
 	  inter_msg("Error", message);
 	else
-	  std::cerr << msg::seq_error << message << msg::endl;
+	  std::cout << msg::seq_error << message << msg::endl;
+      }
+      
+      /**
+       * This displays an file information message
+       */
+      void msg_file_info(const std::string& message) {
+	if(inter)
+	  inter_msg("File", message);
+	else
+	  std::cout << msg::seq_file_info << message << msg::endl;
+      }
+      
+      /**
+       * This displays an cntr information message
+       */
+      void msg_cntr_info(const std::string& message) {
+	if(inter)
+	  inter_msg("Count", message);
+	else
+	  std::cout << msg::seq_cntr_info << message << msg::endl;
+      }
+      
+      /**
+       * This displays an value information message
+       */
+      void msg_value_info(const std::string& message) {
+	if(inter)
+	  inter_msg("Value", message);
+	else
+	  std::cout << msg::seq_value_info << message << msg::endl;
       }
       
       /**
@@ -725,28 +752,19 @@ namespace xsom {
 	if(inter)
 	  inter_msg("Info", message);
 	else
-	  std::cerr << msg::seq_msg_info << message << msg::endl;
+	  std::cout << msg::seq_msg_info << message << msg::endl;
       }
 
       /**
        * This sets the sequencer into a keybord interaction mode. Call add_menue_item before calling this method.
        * @step_mode Tells wether the interactive execution is started in setp-by-step mode or not.
-       * @pipename The name of the system named pipe used for data exchange.
        */
-      void interactive(bool step_mode, std::string pipename) {
-	pipe.open(pipename.c_str(), std::fstream::app);
-	if(!pipe)
-	  throw std::runtime_error(std::string("Cannot open pipe \"") + pipename + "\".");
-	pipe_ptr = &pipe;
-
-	// Let us remove pipe buffer for more reactivity.
-	auto f = open(pipename.c_str(), O_WRONLY);
-	fcntl(f, F_SETPIPE_SZ, 0L);
-	close(f);
+      void interactive(bool step_mode) {
 	
 	inter = true;
 
 	initscr();
+	
 	noecho();
 	raw();
 	nodelay(stdscr, !step_mode);
@@ -762,8 +780,7 @@ namespace xsom {
       void __call(const std::string& macro_name) {
 	auto kv = macros.find(macro_name);
 	if(kv == macros.end())
-	  std::cerr << msg::seq_error << "macro \"" << macro_name
-		    << "\" undefined." << msg::endl;
+	  msg_error(std::string("macro \"") + macro_name + "\" undefined.");
 	else
 	  context.top().push_back(xsom::instr::Instr(new xsom::instr::Call(kv->second)));
       }
@@ -821,14 +838,14 @@ namespace xsom {
        * Add a step that prints a message on cerr
        */
       void __print(const std::string& message) {
-	__step([message](){std::cerr << msg::seq_msg_info << message << msg::endl;});
+	__step([this, message](){this->msg_info(message);});
       }
 
       /**
        * Increments a counter and prints it.
        */
       void __counter(const std::string& name, const std::string& prefix, unsigned int start, unsigned int max) {
-	__step([name, prefix, start, max, this](){std::cerr << msg::seq_cntr_info << prefix << this->next_counter(name, start, max) << msg::endl;});
+	__step([name, prefix, start, max, this](){this->msg_cntr_info(prefix + this->next_counter(name, start, max));});
       }
       
       /**
@@ -844,7 +861,11 @@ namespace xsom {
       template<typename Fun>
       void __value(const std::string& message, const Fun& f) {
 	auto ff = std::bind(f);
-	__step([message, ff]() {std::cerr << msg::seq_value_info << message << ff() << msg::endl;});
+	__step([this, message, ff]() {
+	    std::ostringstream os;
+	    os << message << ff();
+	    this->msg_value_info(os.str());
+	  });
       }
 
       /**
@@ -922,7 +943,8 @@ namespace xsom {
        */
       template<typename TEST>
       void __if(const TEST& test) {
-	context.push(std::list<xsom::instr::Instr>());
+	context.push(std::list<xsom::instr::Instr>()); // if true statements... until else occurs.
+	has_elses.push(false);
 	tests.push(test);
       }
       
@@ -930,25 +952,33 @@ namespace xsom {
        * else
        */
       void __else() {
-	xsom::instr::Instr bthen = nullptr;
-	if(context.top().size() > 0)
-	  bthen = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
-	thens.push(bthen);
-	context.pop();
-	context.push(std::list<xsom::instr::Instr>());
+	has_elses.pop();      // we pop false
+	has_elses.push(true); // and push true since we have an else statement.
+	context.push(std::list<xsom::instr::Instr>()); // We put (over then instructions) a empty context for else instructions.
       }
       
       /**
        * close the __if call.
        */
       void __fi() {
-	xsom::instr::Instr belse = nullptr;
+	xsom::instr::Instr body_then = nullptr;
+	xsom::instr::Instr body_else = nullptr;
+	bool has_else = has_elses.top();
+	has_elses.pop();
+
+	if(has_else) {
+	  // context top is else, then is just below.
+	  if(context.top().size() > 0)
+	    body_else = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
+	  context.pop();
+	}
+	
 	if(context.top().size() > 0)
-	  belse = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
+	  body_then = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
 	context.pop();
-	context.top().push_back(xsom::instr::Instr(new xsom::instr::If(tests.top(), thens.top(), belse)));
+	
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::If(tests.top(), body_then, body_else)));
 	tests.pop();
-	thens.pop();
       }
 
       /**
@@ -982,7 +1012,7 @@ namespace xsom {
       void __plot(const FLAGS& flags) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([display = this->display, f, &os = *pipe_ptr]() {os << (*display)(f(), ccmpl::nofile(), ccmpl::nofile()) << std::flush;});
+	  __step([display = this->display, f]() {(*display)(f(), ccmpl::nofile(), ccmpl::nofile());});
 	}
       }
       
@@ -993,9 +1023,9 @@ namespace xsom {
       void __plot_png(const FLAGS& flags, const std::string& png_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, png_prefix, &os = *pipe_ptr]() {
+	  __step([this, f, png_prefix]() {
 	      auto png = this->next_png(png_prefix);
-	      os << (*(this->display))(f(), ccmpl::nofile(), png) << std::flush;
+	      (*(this->display))(f(), ccmpl::nofile(), png);
 	      this->print_save_info(png);
 	    });
 	}
@@ -1008,9 +1038,9 @@ namespace xsom {
       void __plot_pdf(const FLAGS& flags, const std::string& pdf_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, pdf_prefix, &os = *pipe_ptr]() {
+	  __step([this, f, pdf_prefix]() {
 	      auto pdf = this->next_pdf(pdf_prefix);
-	      os << (*(this->display))(f(), pdf, ccmpl::nofile()) << std::flush;
+	      (*(this->display))(f(), pdf, ccmpl::nofile());
 	      this->print_save_info(pdf);
 	    });
 	}
@@ -1023,10 +1053,10 @@ namespace xsom {
       void __plot(const FLAGS& flags, const std::string& pdf_prefix, const std::string& png_prefix) {
 	if(display != nullptr) {
 	  std::function<std::string ()> f(flags);
-	  __step([this, f, pdf_prefix, png_prefix, &os = *pipe_ptr]() {
+	  __step([this, f, pdf_prefix, png_prefix]() {
 	      auto pdf = this->next_pdf(pdf_prefix);
 	      auto png = this->next_png(png_prefix);
-	      os << (*(this->display))(f(), pdf, png) << std::flush;
+	      (*(this->display))(f(), pdf, png);
 	      this->print_save_info(pdf);
 	      this->print_save_info(png);
 	    });
@@ -1077,7 +1107,7 @@ namespace xsom {
        */
       void run() {
 	if(context.size() != 1)
-	  std::cerr << msg::seq_error << "there are badly closed instructions" << msg::endl;
+	  msg_error("there are badly closed instructions");
 	else {
 	  auto main = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
 	  try {
@@ -1087,7 +1117,7 @@ namespace xsom {
 	  catch(xsom::instr::Done& e) {}
 	  catch(xsom::instr::Exit& e) {}
 	  if(display != nullptr)
-	    (*pipe_ptr) << ccmpl::stop;
+	    !(*display);
 	  if(inter)
 	    endwin(); // closing ncurse context.
 	}
@@ -1123,8 +1153,11 @@ inline void xsom::instr::KeyboardInteraction::execute() {
 	
 	// custom menu execution.
 	// Pre-defined menu entries 'c' and ' ' change the nodelay settings (see constructor where the items are added).
-	if(it != owner->menu.end()) 
+	// 'c' and ' ' and ESC are the only way to exit the loop.
+	if(it != owner->menu.end()) {
 	  (std::get<2>(it->second))();
+	  inloop = !(it->first == 'c' || it->first == ' ' || it->first == 27);
+	}
 	break;
       }
     }
