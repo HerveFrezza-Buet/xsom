@@ -257,23 +257,9 @@ void fill_transitions(const TWeights& tw, const TWeights& cw, std::deque<Pos>& d
 
 
 #define VIEWER_PREFIX "recurrent_SOM"
-#define PIPE_NAME     "/tmp/ccmpl"
 
 
 int main(int argc, char* argv[]) {
-  if(argc == 1) {
-    std::cout << std::endl
-	      << std::endl
-	      << "Usage :" << std::endl
-	      << "  mkfifo " << PIPE_NAME << std::endl
-	      << "  " << argv[0] << " display" << std::endl
-	      << "  python3 ./" << VIEWER_PREFIX << ".py " << PIPE_NAME << std::endl
-	      << "  " << argv[0] << " run    (on another terminal)" << std::endl
-	      << std::endl
-	      << std::endl
-	      << std::endl;
-    ::exit(0);
-  }
 
   // random seed initialization
   std::random_device rd;
@@ -284,7 +270,8 @@ int main(int argc, char* argv[]) {
   
   ccmpl::Main m(argc, argv, VIEWER_PREFIX);
   
-  auto display = ccmpl::layout(12.0, 8.0,
+  auto display = ccmpl::layout(m.hostname, m.port,
+			       12.0, 8.0,
                                {">.",
 				"##",
 				"##",
@@ -412,7 +399,7 @@ int main(int argc, char* argv[]) {
   seq.add_menu_item('C', "C", "Set random thalamics",               [&gen, &state    ](){state.random_cweights(gen);});
   seq.add_menu_item('W', "W", "Set random weights",                 [&gen, &state    ](){state.random_weights(gen);});
   
-  seq.interactive(true, "/tmp/ccmpl"); // call this after having added menus.
+  seq.interactive(true); // call this after having added menus.
 
 
   /* */ seq.__def("step");

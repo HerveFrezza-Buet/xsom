@@ -48,7 +48,8 @@ int main(int argc, char* argv[]) {
   
   ccmpl::Main m(argc,argv,VIEW_PREFIX);
 
-  auto display      = ccmpl::layout(10,10, {"##", "##"});
+  auto display      = ccmpl::layout(m.hostname, m.port,
+				    10,10, {"##", "##"});
   std::string flags = "";
 
   // Let us compute a convolution function.
@@ -135,8 +136,9 @@ int main(int argc, char* argv[]) {
   // the ccmpl::Main object handles generation here
   m.generate(display, false); // true means "use GUI"
   
-  std::cout << display(flags,"example-002-002.pdf", ccmpl::nofile())
-  	    << ccmpl::stop;
+  display(flags,"example-002-002.pdf", ccmpl::nofile());
+  !display;
+  
   return 0;
 }
 
