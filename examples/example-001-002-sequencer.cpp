@@ -20,9 +20,6 @@ std::string flags() {return "#";}
 
 #define VIEW_PREFIX "viewer-001-002"
 int main(int argc, char* argv[]) {
-
-  // make cout unbuffered // HFB
-  //std::cout.rdbuf()->pubsetbuf(0, 0);
   
   ccmpl::Main m(argc,argv,VIEW_PREFIX);
   
@@ -30,7 +27,8 @@ int main(int argc, char* argv[]) {
   
   // Plot
   
-  auto display  = ccmpl::layout(5.0, 5.0, {"#"},
+  auto display  = ccmpl::layout(m.hostname, m.port,
+				.0, 5.0, {"#"},
 				ccmpl::RGB(1., 1., 1.));
   display()     = ccmpl::view2d({-5, 5}, {-1, 1}, ccmpl::aspect::fit, ccmpl::span::placeholder); 
   display()    += ccmpl::line("'b-'", std::bind(fill_data, _1, std::ref(current_time))); 
@@ -48,7 +46,7 @@ int main(int argc, char* argv[]) {
 		    [&seq]() {              // What that key does.
 		      seq.msg_info("Hello World");
 		    });
-  //seq.interactive(true); // call this after having added menus. // HFB
+  seq.interactive(true); // call this after having added menus. 
   
   // See the doxygen documentation of xsom::setup::Sequencer for an
   // exhaustive list of sequencer functionalities.
@@ -56,7 +54,6 @@ int main(int argc, char* argv[]) {
   /* */ seq.__def("tick");
   /* */   seq.__();
   /* */   seq.__step([&current_time](){++current_time;});
-  /* */   seq.__counter("cntr", "value is ", 0, 10000); // HFB
   /* */ seq.__fed();
   
   /* */ seq.__def("update step");
