@@ -533,7 +533,7 @@ namespace xsom {
       std::stack<std::string>                    macro_names;
       std::stack<unsigned int>                   for_times;
       std::stack<std::function<bool ()>>         tests;
-      std::stack<xsom::instr::Instr>             thens;
+      std::stack<bool>                           has_elses;
       std::function<void (std::ostream&)>        save_fct;
       std::function<void (std::istream&)>        load_fct;
       
@@ -943,7 +943,8 @@ namespace xsom {
        */
       template<typename TEST>
       void __if(const TEST& test) {
-	context.push(std::list<xsom::instr::Instr>());
+	context.push(std::list<xsom::instr::Instr>()); // if true statements... until else occurs.
+	has_elses.push(false);
 	tests.push(test);
       }
       
@@ -951,25 +952,33 @@ namespace xsom {
        * else
        */
       void __else() {
-	xsom::instr::Instr bthen = nullptr;
-	if(context.top().size() > 0)
-	  bthen = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
-	thens.push(bthen);
-	context.pop();
-	context.push(std::list<xsom::instr::Instr>());
+	has_elses.pop();      // we pop false
+	has_elses.push(true); // and push true since we have an else statement.
+	context.push(std::list<xsom::instr::Instr>()); // We put (over then instructions) a empty context for else instructions.
       }
       
       /**
        * close the __if call.
        */
       void __fi() {
-	xsom::instr::Instr belse = nullptr;
+	xsom::instr::Instr body_then = nullptr;
+	xsom::instr::Instr body_else = nullptr;
+	bool has_else = has_elses.top();
+	has_elses.pop();
+
+	if(has_else) {
+	  // context top is else, then is just below.
+	  if(context.top().size() > 0)
+	    body_else = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
+	  context.pop();
+	}
+	
 	if(context.top().size() > 0)
-	  belse = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
+	  body_then = xsom::instr::Instr(new xsom::instr::Seq(context.top()));
 	context.pop();
-	context.top().push_back(xsom::instr::Instr(new xsom::instr::If(tests.top(), thens.top(), belse)));
+	
+	context.top().push_back(xsom::instr::Instr(new xsom::instr::If(tests.top(), body_then, body_else)));
 	tests.pop();
-	thens.pop();
       }
 
       /**
