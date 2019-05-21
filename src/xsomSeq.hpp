@@ -1124,8 +1124,6 @@ namespace xsom {
 	  catch(xsom::instr::Exit& e) {}
 	  if(display != nullptr)
 	    !(*display);
-	  if(inter)
-	    endwin(); // closing ncurse context.
 	}
       }
     };
