@@ -689,7 +689,13 @@ namespace xsom {
       Sequencer()
 	: Sequencer(nullptr,nullptr) {}
 
-
+      ~Sequencer() {
+          if(inter) {
+              endwin(); // Must be called to recover the tty state
+                        // otherwise your tty might be in a nasty state
+                        // if your program crashes.
+          }
+      }
       /**
        * Add a menu item in the interactive mode menu. Call this method before calling interactive().
        * @keycode An integer representing a key (in the keyboard).
