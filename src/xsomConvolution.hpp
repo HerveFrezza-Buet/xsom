@@ -723,11 +723,11 @@ namespace xsom {
       };
 
 
-      Convolution convolution(const xsom::tab2d::Mapping& m,
-			      double sigma, xsom::tab::fft::KernelType kernel_type) {
+      inline Convolution convolution(const xsom::tab2d::Mapping& m,
+				     double sigma, xsom::tab::fft::KernelType kernel_type) {
 	return Convolution(m,sigma,kernel_type);
       }
-	
+      
       template<typename fctPOS_IS_VALID> 
       Convolution convolution(const xsom::tab2d::Mapping& m,
 			      double sigma, xsom::tab::fft::KernelType kernel_type,

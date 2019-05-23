@@ -27,79 +27,79 @@ namespace xsom {
   }
 
   namespace msg {
-      struct ColorTag {
-	int tag;
-	ColorTag(int tag) : tag(tag) {}
-	friend std::ostream& operator<<(std::ostream& os, const ColorTag& ct) {
-	  return os << "\033[" << ct.tag << "m";
-	}
-      };
+    struct ColorTag {
+      int tag;
+      ColorTag(int tag) : tag(tag) {}
+      friend std::ostream& operator<<(std::ostream& os, const ColorTag& ct) {
+	return os << "\033[" << ct.tag << "m";
+      }
+    };
 
 
-      inline std::ostream& deflt(std::ostream& os) {
-	os << ColorTag(39);
-	return os;
-      }
+    inline std::ostream& deflt(std::ostream& os) {
+      os << ColorTag(39);
+      return os;
+    }
       
-      inline std::ostream& red(std::ostream& os) {
-	os << ColorTag(31);
-	return os;
-      }
+    inline std::ostream& red(std::ostream& os) {
+      os << ColorTag(31);
+      return os;
+    }
       
-      inline std::ostream& green(std::ostream& os) {
-	os << ColorTag(32);
-	return os;
-      }
+    inline std::ostream& green(std::ostream& os) {
+      os << ColorTag(32);
+      return os;
+    }
       
-      inline std::ostream& yellow(std::ostream& os) {
-	os << ColorTag(33);
-	return os;
-      }
+    inline std::ostream& yellow(std::ostream& os) {
+      os << ColorTag(33);
+      return os;
+    }
       
-      inline std::ostream& blue(std::ostream& os) {
-	os << ColorTag(34);
-	return os;
-      }
+    inline std::ostream& blue(std::ostream& os) {
+      os << ColorTag(34);
+      return os;
+    }
       
-      inline std::ostream& magenta(std::ostream& os) {
-	os << ColorTag(35);
-	return os;
-      }
+    inline std::ostream& magenta(std::ostream& os) {
+      os << ColorTag(35);
+      return os;
+    }
       
-      inline std::ostream& cyan(std::ostream& os) {
-	os << ColorTag(36);
-	return os;
-      }
+    inline std::ostream& cyan(std::ostream& os) {
+      os << ColorTag(36);
+      return os;
+    }
       
-      inline std::ostream& endl(std::ostream& os) {
-	os << deflt << std::endl;
-	return os;
-      }
+    inline std::ostream& endl(std::ostream& os) {
+      os << deflt << std::endl;
+      return os;
+    }
 
-      inline std::ostream& seq_error(std::ostream& os) {
-	os << red     << "Sequencer error : ";
-	return os;
-      }
+    inline std::ostream& seq_error(std::ostream& os) {
+      os << red     << "Sequencer error : ";
+      return os;
+    }
 
-      inline std::ostream& seq_file_info(std::ostream& os) {
-	os << magenta << "Sequencer file  : ";
-	return os;
-      }
+    inline std::ostream& seq_file_info(std::ostream& os) {
+      os << magenta << "Sequencer file  : ";
+      return os;
+    }
       
-      inline std::ostream& seq_cntr_info(std::ostream& os) {
-	os << blue    << "Sequencer count : ";
-	return os;
-      }
+    inline std::ostream& seq_cntr_info(std::ostream& os) {
+      os << blue    << "Sequencer count : ";
+      return os;
+    }
       
-      inline std::ostream& seq_value_info(std::ostream& os) {
-	os << cyan    << "Sequencer value : ";
-	return os;
-      }
+    inline std::ostream& seq_value_info(std::ostream& os) {
+      os << cyan    << "Sequencer value : ";
+      return os;
+    }
       
-      inline std::ostream& seq_msg_info(std::ostream& os) {
-	os << green   << "Sequencer info  : ";
-	return os;
-      }
+    inline std::ostream& seq_msg_info(std::ostream& os) {
+      os << green   << "Sequencer info  : ";
+      return os;
+    }
 
   }
   
@@ -538,7 +538,7 @@ namespace xsom {
       std::function<void (std::istream&)>        load_fct;
       
       static void clear(std::map<std::string,unsigned int>& frame,
-			       const std::string& name) {
+			const std::string& name) {
 	auto kv = frame.find(name);
 	if(kv != frame.end())
 	  frame.erase(kv);
@@ -690,12 +690,13 @@ namespace xsom {
 	: Sequencer(nullptr,nullptr) {}
 
       ~Sequencer() {
-          if(inter) {
-              endwin(); // Must be called to recover the tty state
-                        // otherwise your tty might be in a nasty state
-                        // if your program crashes.
-          }
+	if(inter) {
+	  endwin(); // Must be called to recover the tty state
+	  // otherwise your tty might be in a nasty state
+	  // if your program crashes.
+	}
       }
+      
       /**
        * Add a menu item in the interactive mode menu. Call this method before calling interactive().
        * @keycode An integer representing a key (in the keyboard).
@@ -1128,11 +1129,11 @@ namespace xsom {
       }
     };
 
-    Sequencer sequencer(xsom::Container& archi,
-			ccmpl::chart::Layout& display) {return Sequencer(archi, display);}
-    Sequencer sequencer(xsom::Container& archi)        {return Sequencer(archi);}
-    Sequencer sequencer(ccmpl::chart::Layout& display) {return Sequencer(display);}
-    Sequencer sequencer()                              {return Sequencer();}
+    inline Sequencer sequencer(xsom::Container& archi,
+			       ccmpl::chart::Layout& display) {return Sequencer(archi, display);}
+    inline Sequencer sequencer(xsom::Container& archi)        {return Sequencer(archi);}
+    inline Sequencer sequencer(ccmpl::chart::Layout& display) {return Sequencer(display);}
+    inline Sequencer sequencer()                              {return Sequencer();}
     
   }
 }

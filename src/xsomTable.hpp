@@ -252,7 +252,7 @@ namespace xsom {
       }
     };
 
-    Mapping mapping(double pos_min, double pos_max, unsigned int nb_pos) {
+    inline Mapping mapping(double pos_min, double pos_max, unsigned int nb_pos) {
       return Mapping(pos_min,pos_max,nb_pos);
     }
 
@@ -402,7 +402,7 @@ namespace xsom {
       }
     };
     
-    Mapping mapping(const xsom::Point2D<double>& pos_min,
+    inline Mapping mapping(const xsom::Point2D<double>& pos_min,
 		    const xsom::Point2D<double>& pos_max,
 		    const xsom::Index2D& size) {
       return Mapping(pos_min,pos_max,size);
@@ -794,7 +794,7 @@ namespace xsom {
 	*(out++) = *(begin + (idx0 + table.mapping.size.w-1));}
     }
 
-    void fill_x(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
+    inline void fill_x(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
       points.clear();
       auto         out   = std::back_inserter(points);
       auto         begin = table.content.begin();
@@ -806,7 +806,7 @@ namespace xsom {
 	  *(out++) = *it;
     }
 
-    void fill_y(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
+    inline void fill_y(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
       points.clear();
       auto         out   = std::back_inserter(points);
       auto         begin = table.content.begin();
