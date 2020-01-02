@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
   // Let us turn the sequence into a keyboard interaction mode. We add a custom menue item.
   seq.add_menu_item('x',                    // The key to be pressed.
 		    "the 'x' key",          // The key description.
-		    "Prints 'Hello world'", // The key description.
+		    "Prints 'Hello world'", // The action description.
 		    [&seq]() {              // What that key does.
 		      seq.msg_info("Hello World");
 		    });
