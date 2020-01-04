@@ -574,13 +574,18 @@ namespace xsom {
       std::string next_counter(const std::string& name, unsigned int start, unsigned int max) {
 	return next(frame_counter, start, name, "", std::string("/")+std::to_string(max)+".");
       }
-      
+
+    public:
+
+      /**
+       * Each of this call generates a "prefix-xxxxxx.suffix" name.
+       */
       std::string next_filename(const std::string& prefix,
 				const std::string& suffix) {
 	return next(frame_file, prefix, prefix+"-", std::string(".")+suffix);
       }
 
-
+    private:
       std::string next_pdf(const std::string& name) {
 	return next(frame_pdf, name, name+"-", ".pdf");
       }
