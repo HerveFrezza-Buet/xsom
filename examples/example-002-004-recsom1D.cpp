@@ -28,6 +28,7 @@ using namespace std::placeholders;
 
 // For the upper layer convolution.
 #define KERNEL_TYPE xsom::tab::fft::KernelType::Gaussian  // We use a Gaussian convolution kernel
+#define PADDING_TYPE xsom::tab::fft::PaddingType::Zero    // We use a Zero padding
 #define SIGMA_CONV .0125                                  // This is its standard deviation un Pos units.
 #define GRID_SIGMA (SIGMA_CONV * MAP_SIZE)                // This is its standard deviation in table index units (since MAP_SIZE is mapped into [0,1]).
 
@@ -132,7 +133,7 @@ public:
       tw(mapping),
       ca(mapping),
       cw(mapping),
-      ma(mapping, GRID_SIGMA, KERNEL_TYPE) {
+      ma(mapping, GRID_SIGMA, KERNEL_TYPE, PADDING_TYPE) {
   }
 
   template<typename RANDOM_DEVICE>

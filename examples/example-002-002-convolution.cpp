@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
   // Let us compute a convolution function.
   
   auto f_mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {NB_U, NB_V});
-  auto tabular_f = xsom::tab2d::fft::convolution(f_mapping, SIGMA, xsom::tab::fft::KernelType::Gaussian);
+  auto tabular_f = xsom::tab2d::fft::convolution(f_mapping, SIGMA, xsom::tab::fft::KernelType::Gaussian, xsom::tab::fft::PaddingType::Zero);
 
   tabular_f.learn(f);
   tabular_f.convolve(); // This does the convolution.
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
   // Let us now do the same with a position mask.
 
   auto g_mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {NB_U, NB_U});  // NB_U twice here...
-  auto tabular_g = xsom::tab2d::fft::convolution(g_mapping, SIGMA, xsom::tab::fft::KernelType::Gaussian,
+  auto tabular_g = xsom::tab2d::fft::convolution(g_mapping, SIGMA, xsom::tab::fft::KernelType::Gaussian, xsom::tab::fft::PaddingType::Zero,
 						 [](const xsom::Point2D<double> uv) {return uv*uv <= .6;});
   tabular_g.clear(0);                             // Since we use a mask, we clear for initialization.
   tabular_g.learn(f);
