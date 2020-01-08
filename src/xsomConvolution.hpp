@@ -51,7 +51,7 @@ namespace xsom {
 
 	  for(unsigned int i = 0 ; i < kernel_height ; ++i)
 	    for(unsigned int j = 0 ; j < kernel_width ; ++j)
-	      ws.in_kernel[i*ws.w_fftw+j] += kernel[i*kernel_width + j];
+	      ws.in_kernel[i*ws.w_fftw+j] = kernel[i*kernel_width + j];
 
 	  fftw_execute(ws.p_forw_kernel);
 	}
@@ -66,7 +66,7 @@ namespace xsom {
 	  // Then we build our periodic signals
 	  for(unsigned int i = 0 ; i < height ; ++i)
 	    for(unsigned int j = 0 ; j < width ; ++j)
-	      ws.in_src[i*ws.w_fftw+j] += data[i*width + j];
+	      ws.in_src[i*ws.w_fftw+j] = data[i*width + j];
 
 	  // And we compute their packed FFT
 	  fftw_execute(ws.p_forw_src);
