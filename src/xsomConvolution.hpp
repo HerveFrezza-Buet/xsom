@@ -18,6 +18,11 @@ namespace xsom {
 	  Linear
 	  };
 
+	  enum class PaddingType: char {
+		  Zero,
+		  Constant
+	  };
+
       class Convolution {
       protected:
 	typedef struct Workspace
@@ -43,6 +48,7 @@ namespace xsom {
 	unsigned int kernel_width,kernel_height; 
 	double* kernel;
 	std::array<unsigned int,7> FFTW_FACTORS;
+	PaddingType padding_type;
 
 	void fftw_compute_kernel() {
 	  double * ptr, *ptr_end;
@@ -67,6 +73,11 @@ namespace xsom {
 	  for(unsigned int i = 0 ; i < height ; ++i)
 	    for(unsigned int j = 0 ; j < width ; ++j)
 	      ws.in_src[i*ws.w_fftw+j] = data[i*width + j];
+	  if(this->padding_type == PaddingType::Constant) {
+		  // TODO: overwrite the zero domain
+		  throw std::logic_error("Not yet implemented"); 
+	  }
+
 
 	  // And we compute their packed FFT
 	  fftw_execute(ws.p_forw_src);
@@ -172,6 +183,11 @@ namespace xsom {
 	}
 
 	void init_workspace() {
+	  if(this->padding_type == PaddingType::Constant) {
+		  // TODO: for this case, we may need to extend by kernel_height
+		  // and kernel_width, not halved. 
+		  throw std::logic_error("Not yet implemented"); 
+	  }
 	  ws.h_fftw = find_closest_factor(height + kernel_height/2);
 	  ws.w_fftw = find_closest_factor(width  + kernel_width/2);
 
@@ -245,12 +261,14 @@ namespace xsom {
    
 	Convolution(unsigned int w, unsigned int h, double sigma,
 		    std::vector<double>& data,
-		    KernelType kernel_type) 
+		    KernelType kernel_type,
+			PaddingType padding_type) 
 	  : width(w), height(h), size(w*h),
 	    data(data),
 	    kernel_width(2*width -1), kernel_height(2*height -1),
 	    kernel(new double[kernel_width*kernel_height]),
-	    FFTW_FACTORS({{13,11,7,5,3,2,0}}) {
+	    FFTW_FACTORS({{13,11,7,5,3,2,0}}),
+	   padding_type(padding_type)	{
 	  init_workspace();
 	  double mid_w = kernel_width/2;
 	  double mid_h = kernel_height/2;
@@ -322,15 +340,15 @@ namespace xsom {
 
       public:
 
-	Convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type)
+	Convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type, xsom::tab::fft::PaddingType padding_type)
 	  : xsom::tab1d::Table<double>(m),
-	  convolution(m.size, 1, sigma, this->content, kernel_type) {}
+	  convolution(m.size, 1, sigma, this->content, kernel_type, padding_type) {}
 	
 	template<typename fctPOS_IS_VALID>
-	Convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type,
+	Convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type, xsom::tab::fft::PaddingType padding_type,
 		    const fctPOS_IS_VALID& fct_pos_is_valid)
 	  : xsom::tab1d::Table<double>(m, fct_pos_is_valid),
-	  convolution(m.size, 1, sigma, this->content, kernel_type) {}
+	  convolution(m.size, 1, sigma, this->content, kernel_type, padding_type) {}
 	
 	double get(double pos) const {
 	  return convolution.ws.dst[this->mapping.pos2rank(pos)];
@@ -476,14 +494,14 @@ namespace xsom {
 
       };
 
-      inline Convolution convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type) {
-	return Convolution(m, sigma, kernel_type);
+      inline Convolution convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type, xsom::tab::fft::PaddingType padding_type) {
+	return Convolution(m, sigma, kernel_type, padding_type);
       }
 
       template<typename fctPOS_IS_VALID>
-      inline Convolution convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type,
+      inline Convolution convolution(const xsom::tab1d::Mapping& m, double sigma, xsom::tab::fft::KernelType kernel_type, xsom::tab::fft::PaddingType padding_type, 
 				     const fctPOS_IS_VALID& fct_pos_is_valid) {
-	return Convolution(m, sigma, kernel_type, fct_pos_is_valid);
+	return Convolution(m, sigma, kernel_type, padding_type, fct_pos_is_valid);
       }
     }
   }
@@ -501,16 +519,17 @@ namespace xsom {
       public:
 
 	Convolution(const  xsom::tab2d::Mapping& m,
-		    double sigma, xsom::tab::fft::KernelType kernel_type)
+		    double sigma, xsom::tab::fft::KernelType kernel_type, 
+			xsom::tab::fft::PaddingType padding_type)
 	  : xsom::tab2d::Table<double>(m),
-	  convolution(m.size.w, m.size.h, sigma, this->content, kernel_type) {}
+	  convolution(m.size.w, m.size.h, sigma, this->content, kernel_type, padding_type) {}
 	
 	template<typename fctPOS_IS_VALID>
 	Convolution(const  xsom::tab2d::Mapping& m,
-		    double sigma, xsom::tab::fft::KernelType kernel_type,
+		    double sigma, xsom::tab::fft::KernelType kernel_type, xsom::tab::fft::PaddingType padding_type,
 		    const fctPOS_IS_VALID& fct_pos_is_valid)
 	  : xsom::tab2d::Table<double>(m,fct_pos_is_valid),
-	  convolution(m.size.w, m.size.h, sigma, this->content, kernel_type) {}
+	  convolution(m.size.w, m.size.h, sigma, this->content, kernel_type, padding_type) {}
 
 
 	void convolve() {
@@ -724,15 +743,17 @@ namespace xsom {
 
 
       inline Convolution convolution(const xsom::tab2d::Mapping& m,
-				     double sigma, xsom::tab::fft::KernelType kernel_type) {
-	return Convolution(m,sigma,kernel_type);
+				     double sigma, xsom::tab::fft::KernelType kernel_type,
+					 xsom::tab::fft::PaddingType padding_type) {
+	return Convolution(m,sigma,kernel_type, padding_type);
       }
       
       template<typename fctPOS_IS_VALID> 
       Convolution convolution(const xsom::tab2d::Mapping& m,
 			      double sigma, xsom::tab::fft::KernelType kernel_type,
-			      const fctPOS_IS_VALID& fct_pos_is_valid) {
-	return Convolution(m,sigma,kernel_type,fct_pos_is_valid);
+			      xsom::tab::fft::PaddingType padding_type,
+				  const fctPOS_IS_VALID& fct_pos_is_valid) {
+	return Convolution(m,sigma,kernel_type, padding_type, fct_pos_is_valid);
       }
     }
   }
