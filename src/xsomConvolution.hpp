@@ -74,7 +74,39 @@ namespace xsom {
 	    for(unsigned int j = 0 ; j < width ; ++j)
 	      ws.in_src[i*ws.w_fftw+j] = data[i*width + j];
 	  if(this->padding_type == PaddingType::Constant) {
-		  // TODO: overwrite the zero domain
+		  // In this case, we need to duplicate the border values of the
+		  // signal in the right regions of the extended w_fftw
+		  // ----------------------
+		  // |tl t1 t2  .... tn tr|
+		  // |l1                r1|
+		  // |l2                r2|
+		  // |..                ..|
+		  // |lm                rm|
+		  // |bl b1 b2  .... bn br|
+		  // ----------------------
+		  //
+		  // k = int(kernel_size/2)
+		  //
+		  // ---------------------- 1  2 3  .. k   1  2  3  .. k
+		  // |tl t1 t2  .... tn tr|tr tr tr .. tr  tl tl tl .. tl
+		  // |l1                r1|r1 r1 r1 .. r1  l1 l1 l1 .. l1
+		  // |l2                r2|r2 r2 r2 .. r2  l2 l2 l2 .. l2
+		  // |..                ..|
+		  // |lm                rm|rm rm rm .. rm  lm lm lm .. lm
+		  // |bl b1 b2  .... bn br|br br br .. br  bl bl bl .. bl
+		  // ----------------------
+		  //1 bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
+		  //2 bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl 
+		  //3 bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
+		  //. .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
+		  //k bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
+		  //
+		  //1 tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl
+		  //2 tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
+		  //3 tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
+		  //. .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
+		  //k tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl tl tl
+
 		  throw std::logic_error("Not yet implemented"); 
 	  }
 
@@ -183,14 +215,20 @@ namespace xsom {
 	}
 
 	void init_workspace() {
-	  if(this->padding_type == PaddingType::Constant) {
-		  // TODO: for this case, we may need to extend by kernel_height
-		  // and kernel_width, not halved. 
-		  throw std::logic_error("Not yet implemented"); 
+	  if(this->padding_type == PaddingType::Zero) {
+		  // We can extend by half the kernel size because it's just
+		  // zero padding so the left part of the kernel will overlap the 
+		  // same zeros than the right part of the kernel
+		  ws.h_fftw = find_closest_factor(height + kernel_height/2);
+		  ws.w_fftw = find_closest_factor(width  + kernel_width/2);
 	  }
-	  ws.h_fftw = find_closest_factor(height + kernel_height/2);
-	  ws.w_fftw = find_closest_factor(width  + kernel_width/2);
-
+	  else if(this->padding_type == PaddingType::Constant) {
+		  // For this case, we may need to extend by kernel_height
+		  // and kernel_width, not halved. 
+		  ws.h_fftw = find_closest_factor(height + kernel_height);
+		  ws.w_fftw = find_closest_factor(width  + kernel_width);
+	  }
+	  
 	  ws.in_src = new double[ws.h_fftw * ws.w_fftw];
 	  ws.out_src = (double*) fftw_malloc(sizeof(fftw_complex) * ws.h_fftw * (ws.w_fftw/2+1));
 	  ws.in_kernel = new double[ws.h_fftw * ws.w_fftw];
