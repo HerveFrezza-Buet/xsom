@@ -85,29 +85,35 @@ namespace xsom {
 		  // |bl b1 b2  .... bn br|
 		  // ----------------------
 		  //
-		  // k = int(kernel_size/2)
+		  // kh = int(kernel_height/2)
+		  // kw = int(kernel_width/2)
 		  //
-		  // ---------------------- 1  2 3  .. k   1  2  3  .. k
-		  // |tl t1 t2  .... tn tr|tr tr tr .. tr  tl tl tl .. tl
-		  // |l1                r1|r1 r1 r1 .. r1  l1 l1 l1 .. l1
-		  // |l2                r2|r2 r2 r2 .. r2  l2 l2 l2 .. l2
-		  // |..                ..|
-		  // |lm                rm|rm rm rm .. rm  lm lm lm .. lm
-		  // |bl b1 b2  .... bn br|br br br .. br  bl bl bl .. bl
-		  // ----------------------
-		  //1 bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
-		  //2 bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl 
-		  //3 bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
-		  //. .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
-		  //k bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
+		  //  ---------------------- 1  2 3  .. kw  1  2  3  .. kw
+		  //  |tl t1 t2  .... tn tr|tr tr tr .. tr  tl tl tl .. tl
+		  //  |l1                r1|r1 r1 r1 .. r1  l1 l1 l1 .. l1
+		  //  |l2                r2|r2 r2 r2 .. r2  l2 l2 l2 .. l2
+		  //  |..                ..|
+		  //  |lm                rm|rm rm rm .. rm  lm lm lm .. lm
+		  //  |bl b1 b2  .... bn br|br br br .. br  bl bl bl .. bl
+		  //  ----------------------
+		  //1  bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
+		  //2  bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl 
+		  //3  bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
+		  //.  .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
+		  //kh bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
 		  //
-		  //1 tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl
-		  //2 tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
-		  //3 tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
-		  //. .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
-		  //k tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl tl tl
+		  //1  tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl
+		  //2  tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
+		  //3  tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
+		  //.  .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
+		  //kh tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl tl tl
 
-		  throw std::logic_error("Not yet implemented"); 
+		  int kh = int(kernel_height/2);
+		  int kw = int(kernel_width/2);
+		  for(int i = 0 ; i < kh; ++i)
+			  std::fill(ws.in_src + i * ws.w_fftw + width, 
+					    ws.in_src + i * ws.w_fftw + width + kw, 
+						*(ws.in_src + i * ws.w_fftw + width - 1));
 	  }
 
 

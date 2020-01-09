@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
   // Let us compute a convolution function.
   
   auto f_mapping = xsom::tab2d::mapping({-1, -1}, {1, 1}, {NB_U, NB_V});
-  auto tabular_f = xsom::tab2d::fft::convolution(f_mapping, SIGMA, xsom::tab::fft::KernelType::Gaussian, xsom::tab::fft::PaddingType::Zero);
+  auto tabular_f = xsom::tab2d::fft::convolution(f_mapping, SIGMA, xsom::tab::fft::KernelType::Gaussian, xsom::tab::fft::PaddingType::Constant);
 
   tabular_f.learn(f);
   tabular_f.convolve(); // This does the convolution.
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
   
   display()         = ccmpl::view2d({-1, 1}, {-1, 1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
-  display().title   = "convolution";
+  display().title   = "convolution (constant pad)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
   display++;
   display()         = ccmpl::view2d({-1, 1}, {-1, 1}, ccmpl::aspect::equal, ccmpl::span::placeholder);
   display()         = ccmpl::show_tics(false, false);
-  display().title   = "convolution (masked)";
+  display().title   = "convolution (masked, zero pad)";
   display().xtitle  = "u";
   display().ytitle  = "v";
   display()         = "equal";
