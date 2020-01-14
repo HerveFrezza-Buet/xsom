@@ -88,25 +88,28 @@ namespace xsom {
 		  // kh = int(kernel_height/2)
 		  // kw = int(kernel_width/2)
 		  //
-		  //  ---------------------- 1  2 3  .. kw  1  2  3  .. kw
-		  //  |tl t1 t2  .... tn tr|tr tr tr .. tr  tl tl tl .. tl
-		  //  |l1                r1|r1 r1 r1 .. r1  l1 l1 l1 .. l1
-		  //  |l2                r2|r2 r2 r2 .. r2  l2 l2 l2 .. l2
+		  //  ---------------------- 1  2 3  .. kw         1  2  3  .. kw
+		  //  |tl t1 t2  .... tn tr|tr tr tr .. tr  0 .. 0 tl tl tl .. tl
+		  //  |l1                r1|r1 r1 r1 .. r1  0 .. 0 l1 l1 l1 .. l1
+		  //  |l2                r2|r2 r2 r2 .. r2  0 .. 0 l2 l2 l2 .. l2
 		  //  |..                ..|
-		  //  |lm                rm|rm rm rm .. rm  lm lm lm .. lm
-		  //  |bl b1 b2  .... bn br|br br br .. br  bl bl bl .. bl
+		  //  |lm                rm|rm rm rm .. rm  0 .. 0 lm lm lm .. lm
+		  //  |bl b1 b2  .... bn br|br br br .. br  0 .. 0 bl bl bl .. bl
 		  //  ----------------------
-		  //1  bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
-		  //2  bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl 
-		  //3  bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
-		  //.  .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
-		  //kh bl b1 b2  .... bn br br br br .. br  bl bl bl .. bl
+		  //1  bl b1 b2  .... bn br br br br .. br  0 .. 0 bl bl bl .. bl
+		  //2  bl b1 b2  .... bn br br br br .. br  0 .. 0 bl bl bl .. bl 
+		  //3  bl b1 b2  .... bn br br br br .. br  0 .. 0 bl bl bl .. bl
+		  //.  .. .. ..  .... .. .. .. .. .. .. ..  0 .. 0 .. .. .. .. ..
+		  //kh bl b1 b2  .... bn br br br br .. br  0 .. 0 bl bl bl .. bl
 		  //
-		  //1  tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl
-		  //2  tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
-		  //3  tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl .. tl 
-		  //.  .. .. ..  .... .. .. .. .. .. .. ..  .. .. .. .. ..
-		  //kh tl t1 t2  .... tn tr tr tr tr .. tr  tl tl tl tl tl
+		  //   0  0  0   .... 0  0  0  0  0  .. 0   0 .. 0 0  0  0  .. 0 
+		  //   .. .. ..  .... .. .. .. .. .. .. ..  0 .. 0 .. .. .. .. ..
+		  //   0  0  0   .... 0  0  0  0  0  .. 0   0 .. 0 0  0  0  .. 0 
+		  //1  tl t1 t2  .... tn tr tr tr tr .. tr  0 .. 0 tl tl tl .. tl
+		  //2  tl t1 t2  .... tn tr tr tr tr .. tr  0 .. 0 tl tl tl .. tl 
+		  //3  tl t1 t2  .... tn tr tr tr tr .. tr  0 .. 0 tl tl tl .. tl 
+		  //.  .. .. ..  .... .. .. .. .. .. .. ..  0 .. 0 .. .. .. .. ..
+		  //kh tl t1 t2  .... tn tr tr tr tr .. tr  0 .. 0 tl tl tl tl tl
 
 		  int kh = int(kernel_height/2);
 		  int kw = int(kernel_width/2);
@@ -114,6 +117,19 @@ namespace xsom {
 			  std::fill(ws.in_src + i * ws.w_fftw + width, 
 					    ws.in_src + i * ws.w_fftw + width + kw, 
 						*(ws.in_src + i * ws.w_fftw + width - 1));
+		  
+		  // Does not seem to be correctly working...
+		  for(int i = 0; i < kh; ++i)
+			  std::fill(ws.in_src + i * ws.w_fftw + ws.w_fftw - 1 - kw, 
+					    ws.in_src + i * ws.w_fftw + ws.w_fftw - 1, 
+						*(ws.in_src + i * ws.w_fftw));
+
+		  // This should pad the bottom .... but on the result, seems to 
+		  // pad the top.
+		  for(int i = 0; i < kh; ++i)
+			  std::copy(ws.in_src + (height-1)*ws.w_fftw, 
+					    ws.in_src + (height-1)*ws.w_fftw + width,
+						ws.in_src + (height+i)*ws.w_fftw);
 	  }
 
 
