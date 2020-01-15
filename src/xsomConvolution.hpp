@@ -119,13 +119,13 @@ namespace xsom {
 		  for(int i = 0 ; i < kh; ++i)
 			  std::fill(ws.in_src + i * ws.w_fftw + width, 
 					    ws.in_src + i * ws.w_fftw + width + kw, 
-						*(ws.in_src + i * ws.w_fftw + width - 1));
+						data[i*width + width - 1]);
 		  
 		  // Copy the first column on the top right of in_src
 		  for(int i = 0; i < kh; ++i)
 			  std::fill(ws.in_src + i * ws.w_fftw + ws.w_fftw - kw, 
 					    ws.in_src + i * ws.w_fftw + ws.w_fftw, 
-						*(ws.in_src + i * ws.w_fftw));
+						data[i * width]);
 
 		  // Duplicate the bottom line
 		  for(int i = 0; i < kh; ++i)
@@ -139,6 +139,37 @@ namespace xsom {
 			  std::fill(first_element_ptr + i * ws.w_fftw, 
 					    first_element_ptr + i * ws.w_fftw + kw, 
 						data[(height-1)*width + width-1]);
+		 
+		  // make the block of bl
+		  first_element_ptr = ws.in_src + height * ws.w_fftw + ws.w_fftw - 1 - kw;
+		  for(int i = 0; i < kh; ++i)
+			  std::fill(first_element_ptr + i * ws.w_fftw, 
+					    first_element_ptr + i * ws.w_fftw + kw, 
+						data[(height-1)*width]);
+		  
+		  // Duplicate the top line
+		  first_element_ptr = &(data[0]);
+		  for(int i = 0; i < kh; ++i)
+			  std::copy(first_element_ptr,
+					  first_element_ptr + width, 
+					  ws.in_src + (ws.h_fftw - 1) * ws.w_fftw 
+					            - (kh - 1) * ws.w_fftw + i * ws.w_fftw);
+ 
+		  // Make the block of 'tr'
+		  first_element_ptr = ws.in_src + (ws.h_fftw - 1) * ws.w_fftw
+			                 - (kh - 1) * ws.w_fftw + width;
+		  for(int i = 0; i < kh; ++i)
+			  std::fill(first_element_ptr + i * ws.w_fftw, 
+					    first_element_ptr + i * ws.w_fftw + kw, 
+						data[width-1]);
+
+		  // Make the block full of  'tl'
+		  first_element_ptr = ws.in_src + (ws.h_fftw - 1) * ws.w_fftw
+			                 - (kh - 1) * ws.w_fftw + ws.w_fftw - kw;
+		  for(int i = 0; i < kh; ++i)
+			  std::fill(first_element_ptr + i * ws.w_fftw, 
+					    first_element_ptr + i * ws.w_fftw + kw, 
+						data[0]);
 	  }
 
 
