@@ -27,10 +27,16 @@ double f(const xsom::Point2D<double>& uv) {
     else
       return 0;
   }
+
+  if( (uv.x+1)*(uv.x+1) + (uv.y+1)*(uv.y+1) <= 0.5*0.5)
+	  return 0.8;
+  if( (uv.x-1)*(uv.x-1) + (uv.y-1)*(uv.y-1) <= 0.5*0.5)
+	  return 0.8;
   
   if(uv.x*uv.y > 0)
     return 0;
-  
+
+
   return .8;
 }
 
