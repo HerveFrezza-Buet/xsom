@@ -66,13 +66,21 @@ namespace xsom {
 	  double * ptr, *ptr_end, *ptr2, *ptr3;
 
 	  // Reset the content of ws.in_src
-	  for(ptr = ws.in_src, ptr_end = ws.in_src + ws.h_fftw*ws.w_fftw ; ptr != ptr_end ; ++ptr)
-	    *ptr = 0.0;
+	  std::fill(ws.in_src, ws.in_src + ws.h_fftw*ws.w_fftw, 0.0);
 
 	  // Then we build our periodic signals
-	  for(unsigned int i = 0 ; i < height ; ++i)
-	    for(unsigned int j = 0 ; j < width ; ++j)
-	      ws.in_src[i*ws.w_fftw+j] = data[i*width + j];
+	  auto in_src_line     = ws.in_src;
+	  auto in_src_end      = ws.in_src + height*ws.w_fftw;
+	  auto data_line       = std::data(data);
+	  auto data_line_end   = data_line + width;
+	  for(; in_src_line != in_src_end; in_src_line += ws.w_fftw, data_line = data_line_end, data_line_end += width)
+	    std::copy(data_line, data_line_end, in_src_line);
+
+	  // This is slower that the previous lines.
+	  // for(unsigned int i = 0 ; i < height ; ++i)
+	  //   for(unsigned int j = 0 ; j < width ; ++j)
+	  //     ws.in_src[i*ws.w_fftw+j] = data[i*width + j];
+	  
 	  if(this->padding_type == PaddingType::Constant) {
 		  // In this case, we need to duplicate the border values of the
 		  // signal in the right regions of the extended w_fftw
@@ -194,9 +202,9 @@ namespace xsom {
 	  fftw_execute(ws.p_back);
 	  // Scale the transform
 	  unsigned int wh = ws.w_fftw*ws.h_fftw;
-	  double wh_ = wh;
+	  double inv_wh_ = 1.0/wh;
 	  for(ptr = ws.dst_fft, ptr_end = ws.dst_fft + wh ; ptr != ptr_end ; ++ptr)
-	    *ptr /= wh_;
+	    *ptr *= inv_wh_;
 	}
 
 	void factorize (unsigned int n,
