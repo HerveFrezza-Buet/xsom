@@ -124,33 +124,33 @@ namespace xsom {
 		  double* first_element_ptr;
 
 		  // Duplicate the rightmost colum
-		  for(int i = 0 ; i < kh; ++i)
+		  for(int i = 0 ; i <= kh; ++i)
 			  std::fill(ws.in_src + i * ws.w_fftw + width, 
 					    ws.in_src + i * ws.w_fftw + width + kw, 
 						data[i*width + width - 1]);
 		  
 		  // Copy the first column on the top right of in_src
-		  for(int i = 0; i < kh; ++i)
+		  for(int i = 0; i <= kh; ++i)
 			  std::fill(ws.in_src + i * ws.w_fftw + ws.w_fftw - kw, 
 					    ws.in_src + i * ws.w_fftw + ws.w_fftw, 
 						data[i * width]);
 
 		  // Duplicate the bottom line
-		  for(int i = 0; i < kh; ++i)
+		  for(int i = 0; i <= kh; ++i)
 			  std::copy(ws.in_src + (height-1)*ws.w_fftw, 
 					    ws.in_src + (height-1)*ws.w_fftw + width,
 						ws.in_src + (height+i)*ws.w_fftw);
 
 		  // Make the block full of  'br'
 		  first_element_ptr = ws.in_src + height * ws.w_fftw + width;
-		  for(int i = 0; i < kh; ++i)
+		  for(int i = 0; i <= kh; ++i)
 			  std::fill(first_element_ptr + i * ws.w_fftw, 
 					    first_element_ptr + i * ws.w_fftw + kw, 
 						data[(height-1)*width + width-1]);
 		 
 		  // make the block of bl
 		  first_element_ptr = ws.in_src + height * ws.w_fftw + ws.w_fftw - 1 - kw;
-		  for(int i = 0; i < kh; ++i)
+		  for(int i = 0; i <= kh; ++i)
 			  std::fill(first_element_ptr + i * ws.w_fftw, 
 					    first_element_ptr + i * ws.w_fftw + kw, 
 						data[(height-1)*width]);
