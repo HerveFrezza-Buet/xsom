@@ -757,6 +757,13 @@ namespace xsom {
       return nb_w + nb_h + 2;
     }
 
+    /**
+     * This draw the 2D->2D mapping. It plots a grid, according to the
+     * table coordinates. The position of the grid nodes depend on the
+     * content of tha map.
+     * @param NB_W, NB_H  Are the size of the displaied grid (i.e. nb of columns, nb of lines).
+     * @param STEP Each line of the grid is built by dpanning one line of the table at every STEP elements.
+     */
     template<unsigned int NB_W, unsigned int NB_H, unsigned int STEP>
     void fill_lines(const Table<xsom::Point2D<double> >& table, std::vector<std::vector<ccmpl::Point>>& lines) {
       lines.clear();
@@ -794,6 +801,11 @@ namespace xsom {
 	*(out++) = *(begin + (idx0 + table.mapping.size.w-1));}
     }
 
+    /**
+     * Displays a line along the X axis of the 2D->2D projection. 
+     * @param length_ratio 1 displays the whole x-axis. 
+     * @param step The line is made of table elements taken at every step grid content.
+     */
     inline void fill_x(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
       points.clear();
       auto         out   = std::back_inserter(points);
@@ -806,6 +818,12 @@ namespace xsom {
 	  *(out++) = *it;
     }
 
+
+    /**
+     * Displays a line along the Y axis of the 2D->2D projection. 
+     * @param length_ratio 1 displays the whole y-axis. 
+     * @param step The line is made of table elements taken at every step grid content.
+     */
     inline void fill_y(const Table<xsom::Point2D<double> >& table, double length_ratio, unsigned int step, std::vector<ccmpl::Point>& points) {
       points.clear();
       auto         out   = std::back_inserter(points);
